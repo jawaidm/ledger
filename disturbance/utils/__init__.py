@@ -209,22 +209,22 @@ def create_helppage_object(application_type='Disturbance', help_type=HelpPage.HE
 	"""
 	try:
 		application_type_id = ApplicationType.objects.get(name=application_type).id
-	except Exception, e:
-		print 'application type: {} does not exist, maybe!'.format(application_type, e)
+	except Exception as e:
+		print ('application type: {} does not exist, maybe!\n{}'.format(application_type, e))
 
 	try:
 		help_page = HelpPage.objects.filter(application_type_id=application_type_id, help_type=help_type).latest('version')
 		next_version = help_page.version + 1
-	except Exception, e:
+	except:
 		next_version = 1
 
 	try:
 		proposal_type = ProposalType.objects.filter(name=application_type).latest('version')
-	except Exception, e:
-		print 'proposal type: {} does not exist, maybe!'.format(application_type, e)
+	except Exception as e:
+		print ('proposal type: {} does not exist, maybe!\n{}'.format(application_type, e))
 
 
- 	help_text = 'help_text_url' if help_type==HelpPage.HELP_TEXT_EXTERNAL else 'help_text_assessor_url'
+	help_text = 'help_text_url' if help_type==HelpPage.HELP_TEXT_EXTERNAL else 'help_text_assessor_url'
 	help_list = search_keys(proposal_type.schema, search_list=[help_text,'label'])
 	richtext = create_richtext_help(help_list, help_text)
 
@@ -277,9 +277,9 @@ def search_keys(dictionary, search_list=['help_text', 'label']):
                     if key_label and key_label.endswith(search_item2) and key_label == corresponding_label_key: # and result.has_key(key):
                         #import ipdb; ipdb.set_trace()
                         help_list.append({search_item2: j[key_label], search_item1: i[key]})
-        except Exception, e:
+        except Exception as e:
             #import ipdb; ipdb.set_trace()
-            print e
+            print (e)
 
     return help_list
 
@@ -345,9 +345,9 @@ def search_multiple_keys(dictionary, primary_search='isRequired', search_list=['
                 #if tmp_dict:
                 #  help_list.append( {primary_search: tmp_dict} )
 
-        except Exception, e:
+        except Exception as e:
             #import ipdb; ipdb.set_trace()
-            print e
+            print (e)
 
     return help_list
 

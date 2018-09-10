@@ -20,9 +20,9 @@ class OracleParser(models.Model):
         return str(self.date_parsed)
 
 class OracleParserInvoice(models.Model):
-    parser = models.ForeignKey(OracleParser,related_name='invoices')
+    parser = models.ForeignKey(OracleParser,related_name='invoices', on_delete=models.DO_NOTHING)
     reference = models.CharField(max_length=50)
-    details = JSONField() 
+    details = JSONField()
 
 def increment_receipt_number():
     last_interface = OracleInterface.objects.all().order_by('id').last()
@@ -56,7 +56,7 @@ class OracleInterfaceSystem(models.Model):
         return '{} - {}'.format(self.system_name, self.system_id)
 
 class OracleInterfaceRecipient(models.Model):
-    system = models.ForeignKey(OracleInterfaceSystem,related_name='recipients')
+    system = models.ForeignKey(OracleInterfaceSystem,related_name='recipients', on_delete=models.DO_NOTHING)
     email = models.EmailField()
 
     def __str__(self):
@@ -65,7 +65,7 @@ class OracleInterfaceRecipient(models.Model):
 
 class OracleAccountCode(models.Model):
     active_receivables_activities = models.CharField(max_length=50,primary_key=True)
-    description = models.CharField(max_length=240)    
+    description = models.CharField(max_length=240)
 
     class Meta:
         managed = False
@@ -86,7 +86,7 @@ class TrackRefund(models.Model):
         (2,'Bpoint'),
         (3,'Bpay')
     )
-    user = models.ForeignKey(settings.AUTH_USER_MODEL)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING)
     type = models.SmallIntegerField(choices=REFUND_TYPES)
     refund_id = models.PositiveIntegerField()
     details = models.TextField()

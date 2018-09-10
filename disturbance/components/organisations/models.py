@@ -21,7 +21,7 @@ from disturbance.components.organisations.emails import (
 
 @python_2_unicode_compatible
 class Organisation(models.Model):
-    organisation = models.ForeignKey(ledger_organisation)
+    organisation = models.ForeignKey(ledger_organisation, on_delete=models.DO_NOTHING)
     # TODO: business logic related to delegate changes.
     delegates = models.ManyToManyField(EmailUser, blank=True, through='UserDelegation', related_name='disturbance_organisations')
     pin_one = models.CharField(max_length=50,blank=True)
@@ -41,7 +41,7 @@ class Organisation(models.Model):
         if val:
             self.link_user(request.user,request)
         return val
-    
+
     def link_user(self,user,request):
         with transaction.atomic():
             try:
@@ -58,7 +58,7 @@ class Organisation(models.Model):
                 phone_number = user.phone_number,
                 fax_number = user.fax_number,
                 email = user.email
-            
+
             )
             # log linking
             self.log_user_action(OrganisationAction.ACTION_LINK.format('{} {}({})'.format(delegate.user.first_name,delegate.user.last_name,delegate.user.email)),request)
@@ -76,7 +76,7 @@ class Organisation(models.Model):
                 '''OrganisationContact.objects.get(
                     organisation = self,
                     email = delegate.user.email
-                
+
                 ).delete()'''
                 org_contact = OrganisationContact.objects.get(organisation = self, email = delegate.user.email)
                 if OrganisationContact.objects.filter(organisation=self).count()>1:
@@ -134,7 +134,7 @@ class Organisation(models.Model):
             if exists:
                 return {'exists': exists, 'id': org.id,'first_five':org.first_five}
             return {'exists': exists }
-            
+
         except:
             raise
 
@@ -164,7 +164,7 @@ class Organisation(models.Model):
 
 @python_2_unicode_compatible
 class OrganisationContact(models.Model):
-    organisation = models.ForeignKey(Organisation, related_name='contacts')
+    organisation = models.ForeignKey(Organisation, related_name='contacts', on_delete=models.DO_NOTHING)
     email = models.EmailField(blank=False)
     first_name = models.CharField(max_length=128, blank=False, verbose_name='Given name(s)')
     last_name = models.CharField(max_length=128, blank=False)
@@ -183,8 +183,8 @@ class OrganisationContact(models.Model):
         return '{} {}'.format(self.last_name,self.first_name)
 
 class UserDelegation(models.Model):
-    organisation = models.ForeignKey(Organisation)
-    user = models.ForeignKey(EmailUser)
+    organisation = models.ForeignKey(Organisation, on_delete=models.DO_NOTHING)
+    user = models.ForeignKey(EmailUser, on_delete=models.DO_NOTHING)
 
     class Meta:
         unique_together = (('organisation','user'),)
@@ -214,7 +214,7 @@ class OrganisationAction(UserAction):
             what=str(action)
         )
 
-    organisation = models.ForeignKey(Organisation,related_name='action_logs')
+    organisation = models.ForeignKey(Organisation,related_name='action_logs', on_delete=models.DO_NOTHING)
 
     class Meta:
         app_label = 'disturbance'
@@ -224,15 +224,15 @@ def update_organisation_comms_log_filename(instance, filename):
 
 
 class OrganisationLogDocument(Document):
-    log_entry = models.ForeignKey('OrganisationLogEntry',related_name='documents')
+    log_entry = models.ForeignKey('OrganisationLogEntry',related_name='documents', on_delete=models.DO_NOTHING)
     _file = models.FileField(upload_to=update_organisation_comms_log_filename)
 
     class Meta:
         app_label = 'disturbance'
 
-    
+
 class OrganisationLogEntry(CommunicationsLogEntry):
-    organisation = models.ForeignKey(Organisation, related_name='comms_logs')
+    organisation = models.ForeignKey(Organisation, related_name='comms_logs', on_delete=models.DO_NOTHING)
 
     def save(self, **kwargs):
         # save the request id if the reference not provided
@@ -252,8 +252,8 @@ class OrganisationRequest(models.Model):
     )
     name = models.CharField(max_length=128, unique=True)
     abn = models.CharField(max_length=50, null=True, blank=True, verbose_name='ABN')
-    requester = models.ForeignKey(EmailUser)
-    assigned_officer = models.ForeignKey(EmailUser, blank=True, null=True, related_name='org_request_assignee')
+    requester = models.ForeignKey(EmailUser, on_delete=models.DO_NOTHING)
+    assigned_officer = models.ForeignKey(EmailUser, blank=True, null=True, related_name='org_request_assignee', on_delete=models.SET_NULL)
     identification = models.FileField(upload_to='organisation/requests/%Y/%m/%d', null=True, blank=True)
     status = models.CharField(max_length=100,choices=STATUS_CHOICES, default="with_assessor")
     lodgement_date = models.DateTimeField(auto_now_add=True)
@@ -273,7 +273,7 @@ class OrganisationRequest(models.Model):
         # Check if orgsanisation exists in ledger
         ledger_org = None
         try:
-            ledger_org = ledger_organisation.objects.get(abn=self.abn) 
+            ledger_org = ledger_organisation.objects.get(abn=self.abn)
         except ledger_organisation.DoesNotExist:
             ledger_org = ledger_organisation.objects.create(name=self.name,abn=self.abn)
         # Create Organisation in disturbance
@@ -293,7 +293,7 @@ class OrganisationRequest(models.Model):
             phone_number = self.requester.phone_number,
             fax_number = self.requester.fax_number,
             email = self.requester.email
-        
+
         )
         # send email to requester
         send_organisation_request_accept_email_notification(self, org, request)
@@ -312,7 +312,7 @@ class OrganisationRequest(models.Model):
 
     def unassign(self,request):
         with transaction.atomic():
-            self.assigned_officer = None 
+            self.assigned_officer = None
             self.save()
             self.log_user_action(OrganisationRequestUserAction.ACTION_UNASSIGN,request)
 
@@ -332,7 +332,7 @@ class OrganisationRequest(models.Model):
         return OrganisationRequestUserAction.log_action(self, action, request.user)
 
 class OrganisationAccessGroup(models.Model):
-    site = models.OneToOneField(Site, default='1') 
+    site = models.OneToOneField(Site, default='1', on_delete=models.DO_NOTHING)
     members = models.ManyToManyField(EmailUser)
 
     def __str__(self):
@@ -349,7 +349,7 @@ class OrganisationAccessGroup(models.Model):
     class Meta:
         app_label = 'disturbance'
         verbose_name_plural = "Organisation access group"
-        
+
 class OrganisationRequestUserAction(UserAction):
     ACTION_LODGE_REQUEST = "Lodge request {}"
     ACTION_ASSIGN_TO = "Assign to {}"
@@ -367,15 +367,15 @@ class OrganisationRequestUserAction(UserAction):
             what=str(action)
         )
 
-    request = models.ForeignKey(OrganisationRequest,related_name='action_logs')
+    request = models.ForeignKey(OrganisationRequest,related_name='action_logs', on_delete=models.DO_NOTHING)
 
     class Meta:
         app_label = 'disturbance'
 
 
 class OrganisationRequestDeclinedDetails(models.Model):
-    request = models.ForeignKey(OrganisationRequest)
-    officer = models.ForeignKey(EmailUser, null=False)
+    request = models.ForeignKey(OrganisationRequest, on_delete=models.DO_NOTHING)
+    officer = models.ForeignKey(EmailUser, null=False, on_delete=models.DO_NOTHING)
     reason = models.TextField(blank=True)
 
     class Meta:
@@ -386,14 +386,14 @@ def update_organisation_request_comms_log_filename(instance, filename):
 
 
 class OrganisationRequestLogDocument(Document):
-    log_entry = models.ForeignKey('OrganisationRequestLogEntry',related_name='documents')
+    log_entry = models.ForeignKey('OrganisationRequestLogEntry',related_name='documents', on_delete=models.DO_NOTHING)
     _file = models.FileField(upload_to=update_organisation_request_comms_log_filename)
 
     class Meta:
         app_label = 'disturbance'
 
 class OrganisationRequestLogEntry(CommunicationsLogEntry):
-    request = models.ForeignKey(OrganisationRequest, related_name='comms_logs')
+    request = models.ForeignKey(OrganisationRequest, related_name='comms_logs', on_delete=models.DO_NOTHING)
 
     def save(self, **kwargs):
         # save the request id if the reference not provided

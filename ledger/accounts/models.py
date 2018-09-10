@@ -196,8 +196,8 @@ class BaseAddress(models.Model):
         return zlib.crc32(self.summary.strip().upper().encode('UTF8'))
 
 class Address(BaseAddress):
-    user = models.ForeignKey('EmailUser', related_name='profile_adresses')
-    oscar_address = models.ForeignKey(UserAddress, related_name='profile_addresses')
+    user = models.ForeignKey('EmailUser', related_name='profile_adresses', on_delete=models.CASCADE)
+    oscar_address = models.ForeignKey(UserAddress, related_name='profile_addresses', on_delete=models.CASCADE)
     class Meta:
         verbose_name_plural = 'addresses'
         unique_together = ('user','hash')
@@ -207,7 +207,7 @@ class Address(BaseAddress):
 class EmailIdentity(models.Model):
     """Table used for matching access email address with EmailUser.
     """
-    user = models.ForeignKey('EmailUser', null=True)
+    user = models.ForeignKey('EmailUser', null=True, on_delete=models.CASCADE)
     email = models.EmailField(unique=True)
 
     def __str__(self):
@@ -253,9 +253,9 @@ class EmailUser(AbstractBaseUser, PermissionsMixin):
     organisation = models.CharField(max_length=300, null=True, blank=True,
                                     verbose_name="organisation", help_text='organisation, institution or company')
 
-    residential_address = models.ForeignKey(Address, null=True, blank=False, related_name='+')
-    postal_address = models.ForeignKey(Address, null=True, blank=True, related_name='+')
-    billing_address = models.ForeignKey(Address, null=True, blank=True, related_name='+')
+    residential_address = models.ForeignKey(Address, null=True, blank=False, related_name='+', on_delete=models.CASCADE)
+    postal_address = models.ForeignKey(Address, null=True, blank=True, related_name='+', on_delete=models.CASCADE)
+    billing_address = models.ForeignKey(Address, null=True, blank=True, related_name='+', on_delete=models.CASCADE)
 
     identification = models.ForeignKey(Document, null=True, blank=True, on_delete=models.SET_NULL, related_name='identification_document')
 
@@ -433,7 +433,7 @@ class RevisionedMixin(models.Model):
 
 @python_2_unicode_compatible
 class Profile(RevisionedMixin):
-    user = models.ForeignKey(EmailUser, verbose_name='User', related_name='profiles')
+    user = models.ForeignKey(EmailUser, verbose_name='User', related_name='profiles', on_delete=models.PROTECT)
     name = models.CharField('Display Name', max_length=100, help_text='e.g Personal, Work, University, etc')
     email = models.EmailField('Email')
     postal_address = models.ForeignKey(Address, verbose_name='Postal Address', on_delete=models.PROTECT, related_name='profiles')
@@ -479,7 +479,7 @@ class Organisation(models.Model):
         return self.name
 
 class OrganisationAddress(BaseAddress):
-    organisation = models.ForeignKey(Organisation, null=True,blank=True, related_name='adresses')
+    organisation = models.ForeignKey(Organisation, null=True,blank=True, related_name='adresses', on_delete=models.SET_NULL)
     class Meta:
         verbose_name_plural = 'organisation addresses'
         unique_together = ('organisation','hash')

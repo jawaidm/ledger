@@ -26,10 +26,10 @@ class BpayFile(models.Model):
     class Meta:
         unique_together = ('created','file_id')
         db_table = 'payments_bpayfile'
-        
+
     def __unicode__(self):
         return 'File #{0} {1}'.format(self.file_id,self.created.strftime('%Y-%m-%d %H:%M:%S'))
-    
+
     @property
     def items_validated(self):
         total_items = (self.credit_items + self.debit_items + self.cheque_items)
@@ -39,7 +39,7 @@ class BpayFileTrailer(models.Model):
     total = models.DecimalField(default=0,decimal_places=2,max_digits=12)
     groups = models.IntegerField(default=0)
     records = models.IntegerField(default=0)
-    file = models.OneToOneField(BpayFile, related_name='trailer')
+    file = models.OneToOneField(BpayFile, related_name='trailer', on_delete=models.DO_NOTHING)
 
     class Meta:
         db_table = 'payments_bpayfiletrailer'
@@ -120,7 +120,7 @@ class BpayTransaction(models.Model):
     discount_ref = models.CharField(max_length=20, null=True, blank=True, help_text='Discount Reference Code.')
     discount_method = models.CharField(max_length=3, null=True, blank=True, help_text='Discount Method Code.')
     biller_code = models.CharField(max_length=10)
-    file = models.ForeignKey(BpayFile, related_name='transactions')
+    file = models.ForeignKey(BpayFile, related_name='transactions', on_delete=models.DO_NOTHING)
 
     class Meta:
         unique_together = ('crn', 'txn_ref', 'p_date')
@@ -142,13 +142,13 @@ class BpayTransaction(models.Model):
             pass
         except Invoice.DoesNotExist:
             pass
-        
+
         if not order:
-            try:    
+            try:
                 order = Order.objects.get(number=InvoiceBPAY.objects.get(bpay=self).invoice.order_number)
             except InvoiceBPAY.DoesNotExist:
                 pass
-        
+
         return order
 
     @property
@@ -180,19 +180,19 @@ class BpayTransaction(models.Model):
     @property
     def system(self):
         pass
-    
+
     @property
     def matched(self):
         from ledger.payments.invoice.models import Invoice, InvoiceBPAY
         matched = False
-        
+
         # Check if there is any invoice with a matching crn
         try:
             Invoice.objects.get(reference=self.crn)
             matched = True
         except Invoice.DoesNotExist:
             pass
-        
+
         # Check if there is any association between invoice and this payment
         if not matched:
             try:
@@ -200,9 +200,9 @@ class BpayTransaction(models.Model):
                 matched = True
             except InvoiceBPAY.DoesNotExist:
                 pass
-        
+
         return matched
-    
+
     @property
     def linked(self):
         from ledger.payments.invoice.models import InvoiceBPAY
@@ -213,7 +213,7 @@ class BpayTransaction(models.Model):
             linked = True
         except InvoiceBPAY.DoesNotExist:
             pass
-        
+
         return linked
 
     def __unicode__(self):
@@ -228,7 +228,7 @@ class BpayGroupRecord(models.Model):
     )
     settled = models.DateTimeField(help_text='File Settlement Date Time')
     modifier = models.IntegerField(choices=DATE_MODIFIERS, help_text='As of Date modifier')
-    file = models.ForeignKey(BpayFile, related_name='group_records')
+    file = models.ForeignKey(BpayFile, related_name='group_records', on_delete=models.DO_NOTHING)
 
     class Meta:
         db_table = 'payments_bpaygrouprecord'
@@ -237,7 +237,7 @@ class BpayGroupTrailer(models.Model):
     total = models.DecimalField(default=0,decimal_places=2,max_digits=12)
     accounts = models.IntegerField(default=0)
     records = models.IntegerField(default=0)
-    file = models.ForeignKey(BpayFile, related_name='group_trailerrecords')
+    file = models.ForeignKey(BpayFile, related_name='group_trailerrecords', on_delete=models.DO_NOTHING)
 
     class Meta:
         db_table = 'payments_bpaygrouptrailer'
@@ -249,7 +249,7 @@ class BpayAccountRecord(models.Model):
     cheque_amount = models.DecimalField(default=0,decimal_places=2,max_digits=12)
     debit_amount =models.DecimalField(default=0,decimal_places=2,max_digits=12)
     debit_items = models.IntegerField(default=0)
-    file = models.ForeignKey(BpayFile, related_name='account_records')
+    file = models.ForeignKey(BpayFile, related_name='account_records', on_delete=models.DO_NOTHING)
 
     class Meta:
         db_table = 'payments_bpayaccountrecord'
@@ -257,7 +257,7 @@ class BpayAccountRecord(models.Model):
 class BpayAccountTrailer(models.Model):
     total = models.DecimalField(default=0,decimal_places=2,max_digits=12)
     records = models.IntegerField(default=0)
-    file = models.ForeignKey(BpayFile, related_name='account_trailerrecords')
+    file = models.ForeignKey(BpayFile, related_name='account_trailerrecords', on_delete=models.DO_NOTHING)
 
     class Meta:
         db_table = 'payments_bpayaccounttrailer'
@@ -269,35 +269,35 @@ class BpayCollection(models.Model):
     cheque_total = models.DecimalField(max_digits=12,decimal_places=2)
     debit_total = models.DecimalField(max_digits=12,decimal_places=2)
     total = models.DecimalField(max_digits=12,decimal_places=2)
-    
+
     class Meta:
         managed = False
         db_table = 'bpay_bpaycollection_v'
-        
+
     @property
     def files(self):
         return BpayFile.objects.filter(created__contains=self.date)
-    
+
     @property
     def transactions(self):
         txns = []
         for f in self.files:
             txns.extend(f.transactions.all())
         return txns
-    
+
 class BillerCodeSystem(models.Model):
     biller_code = models.CharField(max_length=10,unique=True)
     system = models.CharField(max_length=100)
 
     class Meta:
         db_table = 'payments_billercodesystem'
-    
+
     def __str__(self):
         return '{} - Biller Code: {}'.format(self.system,self.biller_code)
-    
+
 class BillerCodeRecipient(models.Model):
-    app = models.ForeignKey(BillerCodeSystem, related_name='recipients')
+    app = models.ForeignKey(BillerCodeSystem, related_name='recipients', on_delete=models.DO_NOTHING)
     email = models.EmailField()
-    
+
     class Meta:
         db_table = 'payments_billercoderecipient'

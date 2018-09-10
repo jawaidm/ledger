@@ -24,7 +24,7 @@ class Invoice(models.Model):
     system = models.CharField(max_length=4,blank=True,null=True)
     token = models.CharField(max_length=80,null=True,blank=True)
     voided = models.BooleanField(default=False)
-    previous_invoice = models.ForeignKey('self',null=True,blank=True)
+    previous_invoice = models.ForeignKey('self',null=True,blank=True, on_delete=models.SET_NULL)
 
     def __unicode__(self):
         return 'Invoice #{0}'.format(self.reference)
@@ -281,7 +281,7 @@ class Invoice(models.Model):
 
     def move_funds(self,amount,invoice,details):
         from ledger.payments.models import CashTransaction
-        from ledger.payments.utils import update_payments 
+        from ledger.payments.utils import update_payments
         with transaction.atomic():
             try:
                 # Move all the bpoint transactions to the new invoice
@@ -299,29 +299,29 @@ class Invoice(models.Model):
                 if new_amount > 0:
                     # Create a moveout transaction for current invoice
                     CashTransaction.objects.create(
-                        invoice = self, 
-                        amount = amount, 
-                        type = 'move_out', 
+                        invoice = self,
+                        amount = amount,
+                        type = 'move_out',
                         source = 'cash',
                         details = 'Move funds to invoice {}'.format(invoice.reference),
-                        movement_reference = invoice.reference  
+                        movement_reference = invoice.reference
                     )
                     update_payments(self.reference)
                     # Create a move in transaction for other invoice
                     CashTransaction.objects.create(
-                        invoice = invoice, 
-                        amount = amount, 
-                        type = 'move_in', 
+                        invoice = invoice,
+                        amount = amount,
+                        type = 'move_in',
                         source = 'cash',
                         details = 'Move funds from invoice {}'.format(self.reference),
-                        movement_reference = self.reference  
+                        movement_reference = self.reference
                     )
                 # set the previous invoice in the new invoice
                 invoice.previous_invoice = self
                 invoice.save()
 
                 # Update the oracle interface invoices sp as to prevent duplicate sending of amounts to oracle
-                
+
                 from ledger.payments.models import  OracleParserInvoice
                 OracleParserInvoice.objects.filter(reference=self.reference).update(reference=invoice.reference)
 
@@ -332,8 +332,8 @@ class Invoice(models.Model):
 class InvoiceBPAY(models.Model):
     ''' Link between unmatched bpay payments and invoices
     '''
-    invoice = models.ForeignKey(Invoice)
-    bpay = models.ForeignKey('bpay.BpayTransaction')
+    invoice = models.ForeignKey(Invoice, on_delete=models.DO_NOTHING)
+    bpay = models.ForeignKey('bpay.BpayTransaction', on_delete=models.DO_NOTHING)
 
     class Meta:
         db_table = 'payments_invoicebpay'

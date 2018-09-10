@@ -24,7 +24,7 @@ class Region(models.Model):
 
 @python_2_unicode_compatible
 class District(models.Model):
-    region = models.ForeignKey(Region, related_name='districts')
+    region = models.ForeignKey(Region, related_name='districts', on_delete=models.DO_NOTHING)
     name = models.CharField(max_length=200, unique=True)
     code = models.CharField(max_length=3)
     archive_date = models.DateField(null=True, blank=True)
@@ -73,7 +73,7 @@ class ActivityMatrix(models.Model):
 class Tenure(models.Model):
     name = models.CharField(max_length=255, unique=True)
     order = models.PositiveSmallIntegerField(default=0)
-    application_type = models.ForeignKey(ApplicationType, related_name='tenure_app_types')
+    application_type = models.ForeignKey(ApplicationType, related_name='tenure_app_types', on_delete=models.DO_NOTHING)
 
     class Meta:
         ordering = ['order', 'name']
@@ -85,7 +85,7 @@ class Tenure(models.Model):
 
 @python_2_unicode_compatible
 class UserAction(models.Model):
-    who = models.ForeignKey(EmailUser, null=False, blank=False)
+    who = models.ForeignKey(EmailUser, null=False, blank=False, on_delete=models.SET_NULL)
     when = models.DateTimeField(null=False, blank=False, auto_now_add=True)
     what = models.TextField(blank=False)
 
@@ -116,8 +116,8 @@ class CommunicationsLogEntry(models.Model):
     subject = models.CharField(max_length=200, blank=True, verbose_name="Subject / Description")
     text = models.TextField(blank=True)
 
-    customer = models.ForeignKey(EmailUser, null=True, related_name='+')
-    staff = models.ForeignKey(EmailUser, null=True, related_name='+')
+    customer = models.ForeignKey(EmailUser, null=True, related_name='+', on_delete=models.SET_NULL)
+    staff = models.ForeignKey(EmailUser, null=True, related_name='+', on_delete=models.SET_NULL)
 
     created = models.DateTimeField(auto_now_add=True, null=False, blank=False)
 
@@ -131,7 +131,7 @@ class Document(models.Model):
                             verbose_name='name', help_text='')
     description = models.TextField(blank=True,
                                    verbose_name='description', help_text='')
-    uploaded_date = models.DateTimeField(auto_now_add=True) 
+    uploaded_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         app_label = 'disturbance'

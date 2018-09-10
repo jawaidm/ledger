@@ -61,18 +61,18 @@ class BpointTransaction(models.Model):
     dvtoken = models.CharField(max_length=128,null=True,blank=True,help_text='Stored card dv token')
     last_digits = models.CharField(max_length=4,blank=True,null=True,help_text='Last four digits of card used during checkout')
     is_test = models.BooleanField(default=False,help_text='Transaction is in test mode')
-    
+
     class Meta:
         ordering = ('-created',)
         db_table = 'payments_bpointtransaction'
-    
+
     def __unicode__(self):
         return self.txn_number
-    
+
     @property
     def approved(self):
         return self.response_code == "0"
-    
+
     @property
     def order(self):
         from ledger.payments.models import Invoice
@@ -128,12 +128,12 @@ class BpointTransaction(models.Model):
             return invoice.refundable_amount
         else:
             return refundable_amount
-        
+
 
     # Methods
     # ==============================
     def replay_transaction(self):
-        from ledger.payments.facade import bpoint_facade 
+        from ledger.payments.facade import bpoint_facade
 
         if self.action != 'payment':
             raise ValidationError('Cant replay non payment transactions')
@@ -156,7 +156,7 @@ class BpointTransaction(models.Model):
             )
 
     def refund(self,info,user,matched=True):
-        from ledger.payments.facade import bpoint_facade 
+        from ledger.payments.facade import bpoint_facade
         from ledger.payments.models import TrackRefund, Invoice
 
         with transaction.atomic():
@@ -169,7 +169,7 @@ class BpointTransaction(models.Model):
                     card_details = self.dvtoken.split('|')
                     card = TempBankCard(
                         self.dvtoken,
-                        None 
+                        None
                     )
                     card.last_digits = self.last_digits
                     if self.approved:
@@ -179,10 +179,10 @@ class BpointTransaction(models.Model):
                                         'telephoneorder',
                                         'single',
                                         card,
-                                        self.order, 
+                                        self.order,
                                         self.crn1,
                                         amount,
-                                        self.txn_number 
+                                        self.txn_number
                                     )
                             if txn.approved:
                                 try:
@@ -197,7 +197,7 @@ class BpointTransaction(models.Model):
                         raise ValidationError('A refund cannot be made to an unnapproved tranascation.')
                 else:
                     raise ValidationError('The transaction has to be either a payment or capture in order to make a refund.')
-                return txn 
+                return txn
             except:
                 raise
 
@@ -215,7 +215,7 @@ class BpointToken(models.Model):
         ('MC','MasterCard'),
         ('VC','Visa')
     )
-    user = models.ForeignKey(EmailUser, related_name='stored_cards')
+    user = models.ForeignKey(EmailUser, related_name='stored_cards', on_delete=models.DO_NOTHING)
     DVToken = models.CharField(max_length=128)
     masked_card = models.CharField(max_length=50)
     expiry_date = models.DateField()
