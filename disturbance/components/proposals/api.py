@@ -975,7 +975,7 @@ class ProposalViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError(str(e))
 
     def create(self, request, *args, **kwargs):
-        #import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
         try:
             http_status = status.HTTP_200_OK
             application_type = request.data.get('application')

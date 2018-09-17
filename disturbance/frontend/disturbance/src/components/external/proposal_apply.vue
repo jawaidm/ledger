@@ -304,6 +304,8 @@ export default {
         	return "a disturbance";
 		} else if (vm.selected_application_name == 'Apiary') {
         	return "an apiary";
+		} else {
+        	return "a Commercial Operator Licence";
 		}
 	},
     createProposal:function () {
@@ -323,7 +325,8 @@ export default {
 		}).then(res => {
 		    vm.proposal = res.body;
 			vm.$router.push({
-			    name:"draft_proposal",
+			    //name:"draft_proposal",
+			    name:"draft_commercial_operator_licence",
 				params:{proposal_id:vm.proposal.id}
 			});
             vm.creatingProposal = false;
