@@ -4,7 +4,7 @@
       <div class="panel panel-default">
         <div class="panel-heading">
           <h3 class="panel-title">Activities and Location <small> (Parks)</small>
-            <a class="panelClicker" :href="'#'+pBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="pBody">
+            <a v-if="!show_history" class="panelClicker" :href="'#'+pBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="pBody">
               <span class="glyphicon glyphicon-chevron-up pull-right "></span>
             </a>
           </h3>
@@ -78,16 +78,16 @@
                 <div class="form-check col-sm-12 list-group-item" style="">
                   <input @click="clickRegion($event, r)" class="form-check-input" ref="Checkbox" type="checkbox" :value="r.id" v-model="selected_regions" :id="'region'+r.id" :disabled="!canEditActivities" data-parsley-required />
                   {{ r.name }}
-                  <a data-toggle="collapse" :href="'#'+'r'+r.id" role="button" aria-expanded="true" aria controls="r.id" ><span class="glyphicon glyphicon-chevron-up pull-right "></span></a>
+                  <a v-if="!show_history" data-toggle="collapse" :href="'#'+'r'+r.id" role="button" aria-expanded="true" aria controls="r.id" ><span class="glyphicon glyphicon-chevron-up pull-right "></span></a>
                 </div>
-                <div class="col-sm-12 list-group collapse" :id="'r'+r.id">
+                <div class="col-sm-12 list-group collapse in" :id="'r'+r.id">
                   <div v-for="d in r.districts">
                   <div  style="padding-left: 30px;" class="form-check list-group-item col-sm-12">
                     <input @click="clickDistrict($event, d, r)" :value="d.id" class="form-check-input" ref="Checkbox" :id="'district'+d.id" v-model="selected_districts" type="checkbox" :disabled="!canEditActivities" data-parsley-required />
                     {{ d.name }}
-                   <a data-toggle="collapse" :href="'#'+'d'+d.id" role="button" aria-expanded="true" aria controls="d.id"><span class="glyphicon glyphicon-chevron-up pull-right "></span></a> 
+                   <a v-if="!show_history" data-toggle="collapse" :href="'#'+'d'+d.id" role="button" aria-expanded="true" aria controls="d.id"><span class="glyphicon glyphicon-chevron-up pull-right "></span></a> 
                   </div>
-                  <div class="list-group collapse"  :id="'d'+d.id">
+                  <div class="list-group collapse in"  :id="'d'+d.id">
                     <div class="form-check col-sm-12 list-group-item" style="padding-left: 45px;" v-for="p in d.land_parks">
                       <input name="selected_parks" v-model="selected_parks" :value="p.id" class="form-check-input" :ref="'park'+p.id" type="checkbox" :id="'park'+p.id" :disabled="!canEditActivities" data-parsley-required @click="clickPark($event, p, d)"/>
                     {{ p.name }}
@@ -124,7 +124,7 @@
       <div class="panel panel-default">
         <div class="panel-heading">
           <h3 class="panel-title">Activities and Location <small> (Trails)</small>
-            <a class="panelClicker" :href="'#'+tBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="tBody">
+            <a v-if="!show_history" class="panelClicker" :href="'#'+tBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="tBody">
               <span class="glyphicon glyphicon-chevron-up pull-right "></span>
             </a>
           </h3>
@@ -201,6 +201,10 @@ export default {
             canEditActivities:{
               type: Boolean,
               default: true
+            },
+            show_history:{
+              type: Boolean,
+              default: false
             }
         },
         data:function () {
@@ -970,6 +974,11 @@ export default {
         mounted: function() {
 
             let vm = this;
+
+            if (vm.show_history) {
+                vm.canEditActivities = false;
+            }
+
             vm.proposal.selected_trails_activities=[];
             vm.proposal.selected_parks_activities=[];
             //vm.proposal.marine_parks_activities=[];
@@ -1037,13 +1046,23 @@ export default {
 
             
             
+            /*
             $( 'a[data-toggle="collapse"]' ).on( 'click', function () {
-              //console.log(this);
-            var chev = $( this ).children()[ 0 ];
-            window.setTimeout( function () {
+                var chev = $( this ).children()[ 0 ];
+                window.setTimeout( function () {
                 $( chev ).toggleClass( "glyphicon-chevron-down glyphicon-chevron-up" );
             }, 100 );
             }); 
+            */
+            /*
+            $( 'a[data-toggle="collapse"]' ).collapse({
+                toggle: false,
+                show: true
+            });
+            */
+            //$('.collapse').collapse('show')
+            $('.collapse').removeClass("collapse");
+
 
             //check why this is not working for list items
             // var list_item=$('.list-group-item')

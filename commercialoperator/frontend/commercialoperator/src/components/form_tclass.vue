@@ -83,7 +83,7 @@
                         <div class="panel-heading">
                           Panel 1
                         </div>
-                        <ActivitiesLand :proposal="proposal" id="proposalStartActivitiesLand1" :canEditActivities="canEditActivities" ref="activities_land"></ActivitiesLand>
+                        <ActivitiesLand :proposal="proposal" id="proposalStartActivitiesLand1" :canEditActivities="canEditActivities" ref="activities_land" :show_history="true"></ActivitiesLand>
                       </div>
                     </div>
                   </div>
@@ -94,7 +94,7 @@
                         <div class="panel-heading">
                           Panel 2
                         </div>
-                        <ActivitiesLand :proposal="proposal" id="proposalStartActivitiesLand2" :canEditActivities="canEditActivities" ref="activities_land2"></ActivitiesLand>
+                        <ActivitiesLand2 :proposal="proposal" id="proposalStartActivitiesLand2" :canEditActivities="canEditActivities" ref="activities_land2" :show_history="true"></ActivitiesLand2>
                       </div>
                     </div>
                   </div>
@@ -128,6 +128,7 @@
     import Applicant from '@/components/common/tclass/applicant.vue'
     import Assessment from '@/components/common/tclass/assessment.vue'
     import ActivitiesLand from '@/components/common/tclass/activities_land.vue'
+    import ActivitiesLand2 from '@/components/common/tclass/activities_land.vue'
     import ActivitiesMarine from '@/components/common/tclass/activities_marine.vue'
     import OtherDetails from '@/components/common/tclass/other_details.vue'
     import OnlineTraining from '@/components/common/tclass/online_training.vue'
@@ -177,6 +178,7 @@
         components: {
             Applicant,
             ActivitiesLand,
+            ActivitiesLand2,
             ActivitiesMarine,
             OtherDetails,
             OnlineTraining,
@@ -219,7 +221,9 @@
               let vm=this;
               $('a[href="#pills-activities-land"]').on('shown.bs.tab', function (e) {
                 vm.$refs.activities_land.$refs.vehicles_table.$refs.vehicle_datatable.vmDataTable.columns.adjust().responsive.recalc();
+                vm.$refs.activities_land2.$refs.vehicles_table.$refs.vehicle_datatable.vmDataTable.columns.adjust().responsive.recalc();
               });
+
               $('a[href="#pills-activities-marine"]').on('shown.bs.tab', function (e) {
                 vm.$refs.activities_marine.$refs.vessel_table.$refs.vessel_datatable.vmDataTable.columns.adjust().responsive.recalc();
               });
