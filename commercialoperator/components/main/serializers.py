@@ -64,12 +64,36 @@ class DistrictSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'code', 'land_parks', 'marine_parks')
 
 
-
 class RegionSerializer(serializers.ModelSerializer):
     districts = DistrictSerializer(many=True)
     class Meta:
         model = Region
         fields = ('id', 'name','forest_region', 'districts')
+
+
+class ParkSerializer2(serializers.ModelSerializer):
+    class Meta:
+        model = Park
+        fields=('id', 'name')
+
+class DistrictSerializer2(serializers.ModelSerializer):
+    #land_parks = ParkSerializer2(many=True)
+    children = ParkSerializer2(many=True, read_only=True, source='land_parks')
+    #marine_parks = ParkSerializer(many=True)
+    class Meta:
+        model = District
+        #fields = ('id', 'name', 'land_parks', 'marine_parks')
+        fields = ('id', 'name', 'children')
+
+
+class RegionSerializer2(serializers.ModelSerializer):
+    #districts = DistrictSerializer2(many=True)
+    children = DistrictSerializer2(many=True, read_only=True, source='districts')
+    class Meta:
+        model = Region
+        fields = ('id', 'name', 'children')
+
+
 
 
 

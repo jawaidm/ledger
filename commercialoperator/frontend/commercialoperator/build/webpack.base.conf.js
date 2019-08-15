@@ -4,13 +4,16 @@ var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
 var webpack = require('webpack');
 
+const VueLoaderPlugin = require('vue-loader/lib/plugin')
+const VuetifyLoaderPlugin = require('vuetify-loader/lib/plugin')
+
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
 }
 
 module.exports = {
   entry: {
-    "babel-polyfill": "babel-polyfill", 
+    "babel-polyfill": "babel-polyfill",
     "app": "./src/main.js"
   },
   output: {
@@ -79,7 +82,27 @@ module.exports = {
       {
         test: /datatables\.net.*/,
         loader: 'imports-loader?define=>false,jquery=>jquery,$=>jquery'
-      }  
+      },
+
+      {
+        test: /\.s(c|a)ss$/,
+        use: [
+          'vue-style-loader',
+          'css-loader',
+          {
+            loader: 'sass-loader',
+            options: {
+              implementation: require('sass'),
+              fiber: require('fibers'),
+              indentedSyntax: true // optional
+            }
+          }
+        ]
+      },
+
+
+
+
     ]
   },
   plugins:[
@@ -91,6 +114,10 @@ module.exports = {
            swal: 'sweetalert2',
            _: 'lodash',
            datetimepicker:"../node_modules/eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js"
-       })
+       }),
+       //'VueLoaderPlugin',
+       new VueLoaderPlugin(),
+       new VuetifyLoaderPlugin(),
+
     ]
 }

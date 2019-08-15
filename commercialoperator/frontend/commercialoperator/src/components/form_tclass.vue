@@ -77,6 +77,7 @@
               <div class="tab-pane fade" id="pills-activities-land" role="tabpanel" aria-labelledby="pills-activities-land-tab">
 
 				<div class="row">
+                <!--
                   <div class="col-md-6">
                     <div class="row">
                       <div class="panel panel-default">
@@ -99,10 +100,9 @@
                     </div>
                   </div>
                 </div>
-
-                <!--
-                <ActivitiesLand :proposal="proposal" id="proposalStartActivitiesLand" :canEditActivities="canEditActivities" ref="activities_land"></ActivitiesLand>
                 -->
+
+                <ActivitiesLand :proposal="proposal" id="proposalStartActivitiesLand" :canEditActivities="canEditActivities" ref="activities_land"></ActivitiesLand>
               </div>
               <div class="tab-pane fade" id="pills-activities-marine" role="tabpanel" aria-labelledby="pills-activities-marine-tab">
                 <ActivitiesMarine :proposal="proposal" id="proposalStartActivitiesMarine" :canEditActivities="canEditActivities" ref="activities_marine"></ActivitiesMarine>
@@ -129,7 +129,8 @@
     import Organisation from '@/components/external/organisations/manage.vue'
     import Applicant from '@/components/common/tclass/applicant.vue'
     import Assessment from '@/components/common/tclass/assessment.vue'
-    import ActivitiesLand from '@/components/common/tclass/activities_land.vue'
+    //import ActivitiesLand from '@/components/common/tclass/activities_land.vue'
+    import ActivitiesLand from '@/components/common/tclass/activities_land3.vue'
     import ActivitiesMarine from '@/components/common/tclass/activities_marine.vue'
     import OtherDetails from '@/components/common/tclass/other_details.vue'
     import OnlineTraining from '@/components/common/tclass/online_training.vue'

@@ -77,6 +77,20 @@ class GlobalSettingsViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = GlobalSettingsSerializer
 
 
+from commercialoperator.components.main.serializers import RegionSerializer2, DistrictSerializer2, ParkSerializer2
+class RegionViewSet2(viewsets.ReadOnlyModelViewSet):
+    queryset = Region.objects.all().order_by('id')
+    serializer_class = RegionSerializer2
+
+    def list(self, request, *args, **kwargs):
+        parent_data = {}
+        serializer = self.get_serializer(self.queryset, many=True)
+        parent_data.update(dict(id=0, name='All parks from all regions', children=serializer.data))
+        #return Response(serializer.data)
+        return Response(parent_data)
+
+
+
 class ParkViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Park.objects.all().order_by('id')
     serializer_class = ParkSerializer

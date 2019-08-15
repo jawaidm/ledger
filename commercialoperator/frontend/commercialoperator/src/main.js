@@ -8,6 +8,7 @@ import bs from 'bootstrap'
 import helpers from '@/utils/helpers'
 import hooks from './packages'
 import api_endpoints from './api'
+import vuetify from '@/plugins/vuetify'
 require( '../node_modules/bootstrap/dist/css/bootstrap.css' );
 //require('../node_modules/eonasdan-bootstrap-datetimepicker/build/css/bootstrap-datetimepicker.min.css')
 require( '../node_modules/font-awesome/css/font-awesome.min.css' )
@@ -32,6 +33,7 @@ Vue.http.interceptors.push( function ( request, next ) {
 new Vue( {
   el: '#app',
   router,
+  vuetify,
   template: '<App/>',
   components: {
     App
