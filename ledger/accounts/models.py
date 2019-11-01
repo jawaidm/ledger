@@ -767,20 +767,9 @@ class Organisation(models.Model):
     abn = models.CharField(max_length=50, null=True, blank=True, verbose_name='ABN')
     # TODO: business logic related to identification file upload/changes.
     identification = models.FileField(upload_to='%Y/%m/%d', null=True, blank=True)
-    postal_address = models.ForeignKey(
-        'OrganisationAddress',
-        related_name='org_postal_address',
-        blank=True,
-        null=True,
-        on_delete=models.SET_NULL
-    )
-    billing_address = models.ForeignKey(
-        'OrganisationAddress',
-        related_name='org_billing_address',
-        blank=True,
-        null=True,
-        on_delete=models.SET_NULL
-    )
+    postal_address = models.ForeignKey('OrganisationAddress', related_name='org_postal_address', blank=True, null=True, on_delete=models.SET_NULL)
+    billing_address = models.ForeignKey('OrganisationAddress', related_name='org_billing_address', blank=True, null=True, on_delete=models.SET_NULL)
+    email = models.EmailField(blank=True, null=True,)
     trading_name = models.CharField(max_length=256, null=True, blank=True)
 
     def upload_identification(self, request):
@@ -789,7 +778,7 @@ class Organisation(models.Model):
             self.save()
 
     def __str__(self):
-        return self.name
+return self.name
 
 
 class OrganisationAddress(BaseAddress):
