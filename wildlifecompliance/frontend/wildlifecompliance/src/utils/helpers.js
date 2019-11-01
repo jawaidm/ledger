@@ -37,7 +37,17 @@ module.exports = {
                     error_str = text.non_field_errors[0].replace(/[\[\]"]/g, '');
                 }
                 else{
-                    error_str = text;
+                    for(const key in text) {
+                      const element = text[key];
+                      if(Array.isArray(element)) {
+                        for(let message of element) {
+                          error_str = message;
+                        }
+                      }
+                      else {
+                        error_str = element;
+                      }
+                    }
                 }
             }
             else{
@@ -122,5 +132,29 @@ module.exports = {
                 e.preventDefault();
                 return true;
             });
-    } 
+    },
+    strToBool(val) {
+      return (`${val}`.toLowerCase() === 'true');
+    },
+    splitText: function(aText){
+      let newText = '';
+      newText = aText.split("\n");
+      return newText;
+    },
+    datatableExactStringMatch: function(inputString) {
+      // returns a var in regex form to be passed to datatables search function
+      // eg. .search(regexSearch, true, false)
+      let regexSearch = '^' +
+                          inputString
+                              .replace(/\(/g, '\\(') // escape parentheses
+                              .replace(/\)/g, '\\)') 
+                          + '$';
+      return regexSearch;
+    },
+    guid: function(){
+      function s4(){
+        return Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+      }
+      return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+    }
 };

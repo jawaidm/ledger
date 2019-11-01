@@ -5,6 +5,8 @@
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <h3 class="panel-title">Apply on behalf of
+                            <span v-if="org">{{ org }}</span>
+                            <span v-else>yourself</span>
                             <a :href="'#'+pBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="pBody">
                                 <span class="glyphicon glyphicon-chevron-up pull-right "></span>
                             </a>
@@ -16,10 +18,10 @@
                                     <p><strong>Note: If you are applying for a Taking licence, it cannot be applied for on behalf of an organisation.</strong></p>
                                     <div class="radio">
                                         <label>
-                                        <input type="radio"  name="behalf_of_org" v-model="yourself" value="yourself"> On behalf of yourself
+                                        <input type="radio"  name="behalf_of_org" v-model="org_applicant" value=""> On behalf of yourself
                                         </label>
                                     </div>
-                                    <div v-for="org in profile.wildlifecompliance_organisations" class="radio">
+                                    <div v-for="org in current_user.wildlifecompliance_organisations" class="radio">
                                         <label v-if ="!org.is_consultant">
                                           <input type="radio"  name="behalf_of_org" v-model="org_applicant"  :value="org.id"> On behalf of {{org.name}}
                                         </label>
@@ -30,7 +32,7 @@
                             </div>
                            
                             <div class="col-sm-12">
-                                <button :disabled="org_applicant == '' && yourself == ''" @click.prevent="submit()" class="btn btn-primary pull-right">Continue</button>
+                                <button :disabled="org_applicant === null" @click.prevent="submit()" class="btn btn-primary pull-right">Continue</button>
                             </div>
                         </form>
                     </div>
@@ -46,19 +48,18 @@ import {
   helpers
 }
 from '@/utils/hooks'
+import { mapActions, mapGetters } from 'vuex'
 import utils from './utils'
 export default {
   data: function() {
     let vm = this;
     return {
-        licence_select : this.$route.params.licence_select,
         "application": null,
         agent: {},
-        org_applicant: '',
-        yourself: '',
+        org_applicant: "",
         organisations:null,
 
-        profile: {
+        current_user: {
             wildlifecompliance_organisations: []
         },
         "loading": [],
@@ -74,37 +75,32 @@ export default {
     },
     org: function() {
         let vm = this;
-        console.log('from org function',vm.org_applicant)
-        if (vm.org_applicant != '' || vm.org_applicant != 'submitter'){
-            return vm.profile.wildlifecompliance_organisations.find(org => parseInt(org.id) === parseInt(vm.org_applicant)).name;
+        if (vm.org_applicant && !isNaN(vm.org_applicant)) {
+            return vm.current_user.wildlifecompliance_organisations.find(org => parseInt(org.id) === parseInt(vm.org_applicant)).name;
         }
         return '';
-        
-        
     }
   },
   methods: {
+    ...mapActions([
+        'setApplyOrgId',
+        'setApplicationWorkflowState',
+    ]),
     submit: function() {
         let vm = this;
-         vm.$router.push({
-                      name:"apply_application_licence",
-                      params:{
-                        licence_select:vm.licence_select,
-                        org_select:vm.org_applicant
-                      }
-                  });
-        console.log('from organisation submit - licence_select: ',vm.licence_select);
-        console.log('from organisation submit - org id: ',vm.org_applicant);
-        console.log('From organisation submit - submitter id: ',vm.profile.id);
+        vm.setApplyOrgId({id: vm.org_applicant});
+        vm.setApplicationWorkflowState({bool: true});
+        vm.$router.push({
+            name:"apply_application",
+        });
     },
     
     fetchOrgContact:function (){
             let vm =this;
             vm.$http.get(helpers.add_endpoint_json(api_endpoints.organisation_requests,'get_pending_requests')).then((response)=>{
                 vm.orgRequest_pending = response.body;
-                vm.loading.splice('fetching pending organisation requests ',1);
+                vm.loading.splice('fetching pending organisation requests',1);
             },(response)=>{
-                console.log(response);
                 vm.loading.splice('fetching pending organisation requests',1);
             });
         },
@@ -113,16 +109,14 @@ export default {
   mounted: function() {
     let vm = this;
     vm.form = document.forms.new_application;
-    console.log(vm.licence_select);
-
   },
   beforeRouteEnter:function(to,from,next){
         let initialisers = [
-            utils.fetchProfile(),
+            utils.fetchCurrentUser(),
         ]
         Promise.all(initialisers).then(data => {
             next(vm => {
-                vm.profile = data[0];
+                vm.current_user = data[0];
             });
         });
     },

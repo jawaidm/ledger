@@ -1,124 +1,64 @@
 <template>
-  <form method="POST" name="enter_return" enctype="multipart/form-data">
-<div class="container" id="externalCompliance">
-    
-    <div class="row">
-          <div class="col-md-3">
-            <h3>Return: {{ returns.id }}</h3>
-          </div>
-          <div class="col-md-1">
-            
-          </div>
-          <div class="col-md-8">
-            <div class="row">
-                <template>
-                  
-                     <div >
-                        <ul class="nav nav-tabs">
-                            <li ><a data-toggle="tab" :href="returnTab">Return</a></li>
-                        </ul>
-                    </div>   
-            
-                    <div  class="tab-content">
-                      
-                            <div :id="returnTab" class="tab-pane fade active in"> 
-
-                                <div class="panel panel-default">
-                                    <div class="panel-heading">
-                                        <h3 class="panel-title">Return
-                                                        <a class="panelClicker" :href="'#'+pdBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="pdBody">
-                                                            <span class="glyphicon glyphicon-chevron-up pull-right "></span>
-                                                        </a>
-                                        </h3>
-                                    </div>
-                                    <div class="panel-body panel-collapse in" :id="pdBody">
-                                            <div class="col-sm-12">
-                                              
-                                                <div class="row">
-                                                    <label class="col-sm-4">Do you want to Lodge a nil Return?</label>
-                                                        <label>
-                                                          <input type="radio"  name="nilYes" value="yes" v-model='returns.nil'> yes
-                                                        </label>
-                                                        <label>
-                                                          <input type="radio"  name="nilNo" value="no" v-model='returns.nil'> no
-                                                        </label>
-                                                </div>
-                                                <div class="row">
-                                                    <label class="col-sm-4">Do you want to upload spreadsheet with Return data?</label>
-                                                        <label>
-                                                          <input type="radio"  name="SpreadsheetYes" value="yes" v-model='returns.spreadsheet'> yes
-                                                        </label>
-                                                        <label>
-                                                          <input type="radio"  name="SpreadsheetNo" value="no" v-model='returns.spreadsheet'> no
-                                                        </label>
-                                                </div>
-                                                <div v-if="returns.nil == 'yes'" class="row">
-                                                  <label class="col-sm-4">Reason for providing a Nil return</label>
-                                                  <input type="textarea" name="nilReason" v-model="returns.nilReason">
-                                                  
-                                                </div>
-                                                <div v-if="returns.spreadsheet =='yes'" class="row">
-                                                    <label class="col-sm-4">Do you want the data in spreadsheet added to or replace existing data?</label>
-                                                        <label>
-                                                          <input type="radio"  name="ReplaceYes" value="replace" v-model='returns.replace'> Replace
-                                                        </label>
-                                                        <label>
-                                                          <input type="radio"  name="ReplaceNo" value="add" v-model='returns.replace'> Add to
-                                                        </label>
-                                                </div>
-                                                <div v-if="returns.spreadsheet =='yes'" class="row">
-                                                  <table class="return-table table table-striped table-bordered dataTable">
-                                                    <thead>
-                                                      <tr>
-                                                        <div v-for="(item,index) in returns.table">
-                                                        <th v-f="item.headers" v-for="header in item.headers">{{header.title}}
-                                                        </th>
-                                                        </div>
-                                                      </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                      <tr>
-                                                        <div v-for="(item,index) in returns.table">
-                                                        <td v-if="item.headers" v-for="header in item.headers">
-                                                          <div v-for ="item1 in item.data">
-                                                            <input v-for="(title,key) in item1" v-if="key == header.title" class="form-control returns" :name="`${item1.name}::${header.title}`" :data-species="`${header.species}`" v-model="title.value">
-                                                          </div>
-                                                        </td>
-                                                      </div>
-                                                      </tr>
-                                                    </tbody>
-                                                  </table>
-                                                  
-                                                </div>
-                                                <div class="margin-left-20">
-                                                </div>
-                                                
-                                            </div>
-
-                                    </div>
-                                </div>
-
-                            </div>
-                          
-                    </div>
-                    <input type='hidden' name="table_name" :value="returns.table[0].name" />
-                    <button type="submit" class="btn btn-primary pull-right" name="lodge">Save and Exit</button>
-                    <input type="button" @click.prevent="save" class="btn btn-primary" name="save_continue"/>Save and Continue
-                    <button type="submit" class="btn btn-info pull-right" style="margin-right: 20px;" name="draft">Submit
-                    </button>
-                    
-                </template>
-            </div>
-          </div>
+<div class="panel panel-default">
+    <div class="panel-heading">
+        <h3 class="panel-title">Return
+            <a class="panelClicker" :href="'#'+pdBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="pdBody">
+                <span class="glyphicon glyphicon-chevron-up pull-right "></span>
+            </a>
+        </h3>
     </div>
+    <div class="panel-body panel-collapse in" :id="pdBody">
+        <div class="col-sm-12">
+            <div class="row">
+                <label style="width:70%;" class="col-sm-4">Do you want to Lodge a nil Return?</label>
+                <input type="radio" id="nilYes" name="nilYes" value="yes" v-model='nilReturn' :disabled='isReadOnly'>
+                <label style="width:10%;" for="nilYes">Yes</label>
+                <input type="radio" id="nilNo" name="nilNo" value="no" v-model='nilReturn' :disabled='isReadOnly'>
+                <label style="width:10%;" for="nilNo">No</label>
+            </div>
+            <div v-if="nilReturn === 'yes'" class="row">
+                <label style="width:70%;" class="col-sm-4">Reason for providing a Nil return.</label>
+                <input type="textarea" name="nilReason" v-model="returns.nilReason">
+            </div>
+            <div v-if="nilReturn === 'no'" class="row">
+                <label style="width:70%;" class="col-sm-4">Do you want to upload spreadsheet with Return data?<br>(Download <a v-bind:href="returns.template">spreadsheet template</a>)</label>
+                <input type="radio" name="SpreadsheetYes" value="yes" v-model='spreadsheetReturn' :disabled='isReadOnly'>
+                <label style="width:10%;" for="SpreadsheetYes">Yes</label>
+                <input type="radio" name="SpreadsheetNo" value="no" v-model='spreadsheetReturn' :disabled='isReadOnly' >
+                <label style="width:10%;" for="SpreadsheetNo">No</label>
+            </div>
+            <div v-if="nilReturn === 'no' && spreadsheetReturn === 'yes'" class="row">
+                <label style="width:70%;" class="col-sm-4">Do you want to add to existing data or replace existing data?</label>
+                <input type="radio" name="ReplaceYes" value="yes" v-model='replaceReturn' :disabled='isReadOnly'>
+                <label style="width:10%;" for="ReplaceYes">Replace</label>
+                <input type="radio" name="ReplaceNo" value="no" v-model='replaceReturn' :disabled='isReadOnly'>
+                <label style="width:10%;" for="ReplaceNo">Add to</label>
+            </div>
+            <div v-if="nilReturn === 'no' && spreadsheetReturn === 'yes'" class="row">
+                <span class="btn btn-primary btn-file pull-left">Upload File
+                    <input type="file" ref="spreadsheet" @change="uploadFile()"/>
+                </span>
+                <span class="pull-left" style="margin-left:10px;margin-top:10px;">{{uploadedFileName}}</span>
+            </div>
+            <div class="row"></div>
+            <div v-if="nilReturn === 'no'" class="row">
+                <renderer-block v-for="(data, key) in returns.table"
+                          :component="data"
+                          v-bind:key="returns-grid-data"
+                />
+            </div>
+            <div class="margin-left-20"></div>
+            <!-- End of Spreadsheet Return -->
+        </div>
+    </div>
+    <input type='hidden' name="table_name" :value="returns.table[0].name" />
 </div>
-</form>
 </template>
 
 <script>
-import $ from 'jquery'
 import Vue from 'vue'
-import CommsLogs from '@common-utils/comms_logs.vue'
+import { mapActions, mapGetters } from 'vuex'
+import CommsLogs from '@common-components/comms_logs.vue'
 import {
   api_endpoints,
   helpers
@@ -126,109 +66,87 @@ import {
 from '@/utils/hooks'
 export default {
   name: 'externalReturn',
+  props:["table", "data", "grid"],
   data() {
     let vm = this;
     return {
-        "returns":null,
-        returnTab: 'returnTab'+vm._uid,
-        form:null,
-                    
+        pdBody: 'pdBody' + vm._uid,
+        form: null,
+        spreadsheet: null,
+        returnBtn: 'Submit',
+        nilReturn: 'yes',
+        spreadsheetReturn: 'no',
+        replaceReturn: 'no',
+        readonly: false,
     }
   },
-  methods: {
-    save: function(e) {
-      let vm = this;
-      vm.form=document.forms.enter_return
-      let data = new FormData(vm.form);
-      console.log(data)
-      console.log(JSON.stringify(data))
-      // console.log('printing table name')
-      // console.log(vm.returns.table[0].name)
-      // data.returns_name=vm.returns.table[0].name
-      // data.id=vm.returns.id
-      // data.application=vm.returns.application
-      // data.table=vm.returns.table
-
-      // $('.returns').each((i,d) => {
-      //   console.log( $(d).data('species'))
-
-      // })
-
-       // vm.$http.post('/api/returns.json',JSON.stringify(returns),{
-        vm.$http.post(helpers.add_endpoint_json(api_endpoints.returns,vm.returns.id+'/update_details'),data,{
-                        emulateJSON:true,
-                    }).then((response)=>{
-                        swal(
-                             'Sent',
-                             'successful returns',
-                             'success'
-                        );
-
-                    },(error)=>{
-                        console.log(error);
-                        swal(
-                             'Sent',
-                             'Enter data in correct format',
-                             'success'
-                        );
-                    });
+  computed: {
+     ...mapGetters([
+        'isReturnsLoaded',
+        'returns',
+        'is_external',
+    ]),
+    uploadedFileName: function() {
+      return this.spreadsheet != null ? this.spreadsheet.name: '';
     },
-
-    submit: function(e) {
-      let vm = this;
-      vm.form=document.forms.enter_return
-      let data = new FormData(vm.form);
-      // console.log('printing table name')
-      // console.log(vm.returns.table[0].name)
-      // data.returns_name=vm.returns.table[0].name
-      // data.id=vm.returns.id
-      // data.application=vm.returns.application
-      // data.table=vm.returns.table
-
-      // $('.returns').each((i,d) => {
-      //   console.log( $(d).data('species'))
-
-      // })
-
-      
-
-       // vm.$http.post('/api/returns.json',JSON.stringify(returns),{
-        vm.$http.post(helpers.add_endpoint_json(api_endpoints.returns,vm.returns.id+'/update_details'),data,{
-                        emulateJSON:true,
-                    }).then((response)=>{
-                        swal(
-                             'Sent',
-                             'successful returns',
-                             'success'
-                        );
-                    },(error)=>{
-                        console.log(error);
-                    });
+    isReadOnly: function() {
+      return this.readonly;
     },
-    
   },
-  beforeRouteEnter: function(to, from, next) {
-    console.log(to.params)
-     Vue.http.get(`/api/returns/${to.params.return_id}.json`).then(res => {
-          next(vm => {
-            console.log('fetching returns')
-            vm.returns = res.body;
-            // vm.loading.splice('fetching application', 1);
-            // vm.setdata(vm.application.readonly);
-          });
-        },
-        err => {
-          console.log(err);
-        });
-   },
-   mounted: function(){
-        let vm = this;
-
-        vm.form = document.forms.enter_return;
-        console.log("from mounted")
-        console.log(vm.form)
-            
+  methods: {
+    ...mapActions({
+      load: 'loadReturns',
+    }),
+    ...mapActions([
+        'setReturns',
+    ]),
+    uploadFile: function(e) {
+      let _file = null;
+      var input = $(this.$refs.spreadsheet)[0];
+      if (input.files && input.files[0]) {
+        var reader = new FileReader();
+        reader.readAsDataURL(input.files[0]);
+        reader.onload = function(e) {
+          _file = e.target.result;
+        };
+        _file = input.files[0];
+      }
+      this.spreadsheet = _file;
+      this.validate_upload()
     },
-
+    validate_upload(e) {
+      let _data = new FormData(this.form);
+      _data.append('spreadsheet', this.spreadsheet)
+      this.$http.post(helpers.add_endpoint_json(api_endpoints.returns,this.returns.id+'/upload_details'),_data,{
+                    emulateJSON:true,
+        }).then((response)=>{
+            if (this.replaceReturn === 'no') {
+              let idx1 = this.returns.table[0]['data'].length
+              for (let idx2=0; idx2 < response.body[0]['data'].length; idx2++) {
+                this.returns.table[0]['data'][idx1++] = response.body[0]['data'][idx2]
+              }
+            }
+            if (this.replaceReturn === 'yes') {
+              this.returns.table[0]['data'] = response.body[0]['data']
+              this.replaceReturn = 'no'
+            }
+            this.nilReturn = 'no'
+            this.spreadsheetReturn = 'no'
+        },exception=>{
+		        swal('Error Uploading', exception.body.error, 'error');
+        });
+    },
+  },
+  mounted: function(){
+    var vm = this;
+    vm.form = document.forms.enter_return;
+    vm.readonly = !vm.is_external;
+    
+    if (vm.returns.table[0]) {
+        vm.nilReturn = 'no'
+        vm.spreadsheetReturn = 'no'
+        vm.replaceReturn = 'no'
+    }
+  },
 }
 </script>

@@ -1,47 +1,6 @@
 <template id="application_conditions">
 
-                    <div class="col-md-12">
-                    <div class="row">
-                        <div class="panel panel-default">
-                            <div class="panel-heading">
-                                <h3 class="panel-title">Inspection Report
-                                    <a class="panelClicker" :href="'#'+panelBody" data-toggle="collapse"  data-parent="#userInfo" expanded="false" :aria-controls="panelBody">
-                                        <span class="glyphicon glyphicon-chevron-down pull-right "></span>
-                                    </a>
-                                </h3>
-                            </div>
-                            <div class="panel-body panel-collapse collapse in" :id="panelBody">
-                                <form class="form-horizontal" action="index.html" method="post">
-                                    <div class="col-sm-12">
-                                        <div class="form-group">
-                                            <div class="row">
-                                                <div class="col-sm-3">
-                                                    <label class="control-label pull-left">Inspection Date</label>
-                                                </div>
-                                                <div class="col-sm-9">
-                                                    <div class="input-group date" style="width: 70%;">
-                                                       <input class="pull-left" placeholder="DD/MM/YYYY"/> 
-                                                       <span class="input-group-addon">
-                                                            <span class="glyphicon glyphicon-calendar"></span>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-sm-3">
-                                                    <label class="control-label pull-left">Inspection Report</label>
-                                                </div>
-                                                <div class="col-sm-9">
-                                                       <a href="">Attach File</a>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                </form>
-                            </div>
-                        </div>
-                    </div>
+                    <div class="col-md-12 conditions-table">
                     <div class="row">
                         <div class="panel panel-default">
                             <div class="panel-heading">
@@ -54,14 +13,15 @@
                             <div class="panel-body panel-collapse collapse in" :id="panelBody">
                                 <form class="form-horizontal" action="index.html" method="post">
                                     <div class="col-sm-12">
-                                        <button v-if="hasAssessorMode" @click.prevent="addCondition()" style="margin-bottom:10px;" class="btn btn-primary pull-right">Add Condition</button>
+                                        <button v-if="canEditConditons" @click.prevent="addCondition()" style="margin-bottom:10px;" class="btn btn-primary pull-right">Add Condition</button>
                                     </div>
                                     <datatable ref="conditions_datatable" :id="'conditions-datatable-'+_uid" :dtOptions="condition_options" :dtHeaders="condition_headers"/>
                                 </form>
                             </div>
                         </div>
                     </div>
-                    <ConditionDetail ref="condition_detail" :application_id="application.id" :conditions="conditions" :licence_activity_type_tab="licence_activity_type_tab"/>
+                    <ConditionDetail ref="condition_detail" :application_id="application.id" :conditions="conditions" :licence_activity_tab="selected_activity_tab_id"
+                    :condition="viewedCondition"/>
                 </div>
 
             
@@ -71,19 +31,30 @@ import {
     api_endpoints,
     helpers
 }
-from '@/utils/hooks'
-import datatable from '@vue-utils/datatable.vue'
-import ConditionDetail from './application_add_condition.vue'
+from '@/utils/hooks';
+import '@/scss/dashboards/application.scss';
+import datatable from '@vue-utils/datatable.vue';
+import ConditionDetail from './application_add_condition.vue';
+import { mapGetters } from 'vuex';
 export default {
     name: 'InternalApplicationConditions',
     props: {
-        application: Object,
-        licence_activity_type_tab:Number
+        activity: {
+            type: Object | null,
+            required: true
+        }
     },
     data: function() {
         let vm = this;
         return {
+            form: null,
+            datepickerOptions:{
+                format: 'DD/MM/YYYY',
+                showClear:true,
+                allowInputToggle:true
+            },
             panelBody: "application-conditions-"+vm._uid,
+            viewedCondition: {},
             conditions: [],
             condition_headers:["Condition","Due Date","Recurrence","Action","Order"],
             condition_options:{
@@ -93,7 +64,7 @@ export default {
                 },
                 responsive: true,
                 ajax: {
-                    "url": helpers.add_endpoint_join(api_endpoints.applications,vm.application.id+'/conditions/?licence_activity_type='+vm.licence_activity_type_tab),
+                    "url": helpers.add_endpoint_join(api_endpoints.applications,this.$store.getters.application.id+'/conditions/?licence_activity='+this.$store.getters.selected_activity_tab_id),
                     "dataSrc": ''
                 },
                 order: [],
@@ -115,10 +86,13 @@ export default {
                             if (full.recurrence){
                                 switch(full.recurrence_pattern){
                                     case 1:
+                                    case "weekly":
                                         return `Once per ${full.recurrence_schedule} week(s)`;
                                     case 2:
+                                    case "monthly":
                                         return `Once per ${full.recurrence_schedule} month(s)`;
                                     case 3:
+                                    case "yearly":
                                         return `Once per ${full.recurrence_schedule} year(s)`;
                                     default:
                                         return '';
@@ -131,12 +105,12 @@ export default {
                     {
                         mRender:function (data,type,full) {
                             let links = '';
-                            // if (vm.application.assessor_mode.has_assessor_mode){
-                            //     links +=  `<a href='#' class="editCondition" data-id="${full.id}">Edit</a><br/>`;
-                            //     links +=  `<a href='#' class="deleteCondition" data-id="${full.id}">Delete</a><br/>`;
-                            // }
-                            links +=  `<a href='#' class="editCondition" data-id="${full.id}">Edit</a><br/>`;
-                            links +=  `<a href='#' class="deleteCondition" data-id="${full.id}">Delete</a><br/>`;
+                            if(vm.canEditConditons) {
+                                links = `
+                                    <a href='#' class="editCondition" data-id="${full.id}">Edit</a><br/>
+                                    <a href='#' class="deleteCondition" data-id="${full.id}">Delete</a><br/>
+                                `;
+                            }
                             return links;
                         },
                         orderable: false
@@ -145,10 +119,6 @@ export default {
                         mRender:function (data,type,full) {
                             let links = '';
                             // TODO check permission to change the order
-                            // if (vm.application.assessor_mode.has_assessor_mode){
-                            //     links +=  `<a class="dtMoveUp" data-id="${full.id}" href='#'><i class="fa fa-angle-up fa-2x"></i></a><br/>`;
-                            //     links +=  `<a class="dtMoveDown" data-id="${full.id}" href='#'><i class="fa fa-angle-down fa-2x"></i></a><br/>`;
-                            // }
                             links +=  `<a class="dtMoveUp" data-id="${full.id}" href='#'><i class="fa fa-angle-up"></i></a><br/>`;
                             links +=  `<a class="dtMoveDown" data-id="${full.id}" href='#'><i class="fa fa-angle-down"></i></a><br/>`;
                             return links;
@@ -158,8 +128,10 @@ export default {
                 ],
                 processing: true,
                 drawCallback: function (settings) {
-                    $(vm.$refs.conditions_datatable.table).find('tr:last .dtMoveDown').remove();
-                    $(vm.$refs.conditions_datatable.table).children('tbody').find('tr:first .dtMoveUp').remove();
+                    if(vm.$refs.conditions_datatable) {
+                        $(vm.$refs.conditions_datatable.table).find('tr:last .dtMoveDown').remove();
+                        $(vm.$refs.conditions_datatable.table).children('tbody').find('tr:first .dtMoveUp').remove();
+                    }
                     // Remove previous binding before adding it
                     $('.dtMoveUp').unbind('click');
                     $('.dtMoveDown').unbind('click');
@@ -171,26 +143,51 @@ export default {
         }
     },
     watch:{
-        hasAssessorMode(){
-            // reload the table
-            this.updatedConditions();
-        }
     },
     components:{
         datatable,
         ConditionDetail
     },
     computed:{
-        hasAssessorMode(){
-            return this.application.assessor_mode.has_assessor_mode;
-        }
+        ...mapGetters([
+            'application',
+            'selected_activity_tab_id',
+            'hasRole',
+        ]),
+        canEditConditons: function() {
+            if(!this.selected_activity_tab_id || this.activity == null) {
+                return false;
+            }
+
+            let required_role = false;
+            switch(this.activity.processing_status.id) {
+                case 'with_assessor':
+                    required_role = 'assessor';
+                break;
+                case 'with_officer_conditions':
+                    required_role = 'licensing_officer';
+                break;
+            }
+            return required_role && this.hasRole(required_role, this.selected_activity_tab_id);
+        },
     },
     methods:{
-        addCondition(){
-            var selectedTabTitle = $("li.active");
-            var tab_id=selectedTabTitle.children().attr('href').split(/(\d)/)[1]
-            
-            this.$refs.condition_detail.licence_activity_type=tab_id
+        addCondition(preloadedCondition){
+            if(preloadedCondition) {
+                this.viewedCondition = preloadedCondition;
+                this.viewedCondition.due_date = preloadedCondition.due_date != null ? moment(preloadedCondition.due_date).format('DD/MM/YYYY'): '';
+            }
+            else {
+                this.viewedCondition = {
+                    standard: true,
+                    recurrence: false,
+                    due_date: '',
+                    free_condition: '',
+                    recurrence_pattern: 'weekly',
+                    application: this.application.id
+                };
+            }
+            this.$refs.condition_detail.licence_activity = this.selected_activity_tab_id;
             this.$refs.condition_detail.isModalOpen = true;
         },
         removeCondition(_id){
@@ -216,7 +213,6 @@ export default {
         },
         fetchConditions(){
             let vm = this;
-            
             vm.$http.get(api_endpoints.application_standard_conditions).then((response) => {
                 vm.conditions = response.body
             },(error) => {
@@ -226,10 +222,8 @@ export default {
         editCondition(_id){
             let vm = this;
             vm.$http.get(helpers.add_endpoint_json(api_endpoints.application_conditions,_id)).then((response) => {
-                this.$refs.condition_detail.condition = response.body;
-                this.$refs.condition_detail.condition.due_date =  response.body.due_date != null && response.body.due_date != undefined ? moment(response.body.due_date).format('DD/MM/YYYY'): '';
                 response.body.standard ? $(this.$refs.condition_detail.$refs.standard_req).val(response.body.standard_condition).trigger('change'): '';
-                this.addCondition();
+                this.addCondition(response.body);
             },(error) => {
                 console.log(error);
             })
@@ -289,14 +283,16 @@ export default {
             table.row(index).data(data2);
             table.row(index + order).data(data1);
             table.page(0).draw(false);
-        }
+        },
     },
     mounted: function(){
-        let vm = this;
         this.fetchConditions();
-        vm.$nextTick(() => {
+        this.$nextTick(() => {
             this.eventListeners();
+            this.form = document.forms.assessment_form;
         });
+    },
+    updated: function() {
     }
 }
 </script>

@@ -4,7 +4,10 @@
             <div class="col-sm-12">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h3 class="panel-title">Apply for a new licence
+                        <h3 class="panel-title">{{applicationTitle}} for
+                            <span v-if="selected_apply_org_id">{{ selected_apply_org_id_details.name }} ({{ selected_apply_org_id_details.abn }})</span>
+                            <span v-if="selected_apply_proxy_id">{{ selected_apply_proxy_id_details.first_name }} {{ selected_apply_proxy_id_details.last_name }} ({{ selected_apply_proxy_id_details.email }})</span>
+                            <span v-if="!selected_apply_org_id && !selected_apply_proxy_id">yourself</span>
                             <a :href="'#'+pBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="pBody">
                                 <span class="glyphicon glyphicon-chevron-up pull-right "></span>
                             </a>
@@ -12,33 +15,40 @@
                     </div>
 
                     <div class="panel-body collapse in" :id="pBody">
-                        <form class="form-horizontal" name="personal_form" method="post">
+                        <form v-if="categoryCount" class="form-horizontal" name="personal_form" method="post">
                           
                             <div class="col-sm-12">
                                 <div class="row">
-                                    <label class="col-sm-4">Select the class of licence you wish to apply for:</label>
+                                    <label class="col-sm-6">
+                                        {{ selectionLabel }}:
+                                    </label>
                                 </div>
 
-                                
                                 <div class="margin-left-20">
-                                <div v-for="(category,index) in licence_classes" class="radio">
+                                <div v-for="(category,index) in visibleLicenceCategories" class="radio">
                                     <div class ="row">
                                         <div class="col-sm-9" >  
-                                            <input type="radio"  :id="category.id" name="licence_category" v-model="licence_classes.id"  :value="category.id" @change="handleRadioChange($event,index)"> {{category.short_name}}
+                                            <input type="radio"  :id="category.id" name="licence_category" v-model="licence_categories.id"  :value="category.id" @change="handleRadioChange($event,index)"> {{category.short_name}}
                                              
                                             <div class="row">
 
 
                                                 <div  v-if="category.checked" class="col-sm-9">
 
-                                                    <div v-if="!(behalf_of_org != '' && type.not_for_organisation == true)" v-for="(type,index1) in category.activity_type" class="checkbox margin-left-20">
-                                                        <input type="checkbox" ref="selected_activity_type" name ="activity_type" :value="type.id" :id = "type.id" v-model="category.activity_type[index1].selected" @click="handleActivityTypeCheckboxChange(index,index1)"> {{type.short_name}}
+                                                    <div v-if="!(selected_apply_org_id != '' && type.not_for_organisation == true)" v-for="(type,index1) in category.activity" class="checkbox margin-left-20">
+                                                        <input type="checkbox" ref="selected_activity_type" name ="activity" :value="type.id" :id = "type.id" v-model="category.activity[index1].selected" @change="handleActivityCheckboxChange(index,index1)"> {{type.short_name}}
 
                                                         <div v-if="type.selected">
-                                                            <div v-for="(activity,index2) in type.activity" class="checkbox activity-clear-left">
+                                                            <div v-for="(purpose,index2) in type.purpose" class="checkbox purpose-clear-left">
 
                                                                 <div class ="col-sm-12">
-                                                                    <input type="checkbox" :value="activity.id" :id="activity.id" v-model="type.activity[index2].selected" @click="handleActivityCheckboxChange(index,index1,index2,$event)">{{activity.name}}<span v-if="wc_version != 1.0"> ({{activity.base_application_fee}} + {{activity.base_licence_fee}})</span>
+                                                                    <input type="checkbox"
+                                                                        :value="purpose.id"
+                                                                        :id="purpose.id"
+                                                                        v-model="type.purpose[index2].selected"
+                                                                        @change="handlePurposeCheckboxChange(index,$event)">
+                                                                            {{purpose.name}}
+                                                                            <span> ({{purpose.base_application_fee}} + {{purpose.base_licence_fee}})</span>
                                                                 </div>
 
                                                             </div>
@@ -55,14 +65,22 @@
                                 </div>
                             </div>
                             <div class="col-sm-12">
-                                <button :disabled="behalf_of == '' && yourself == ''" @click.prevent="submit()" class="btn btn-primary pull-right" style="margin-left: 10px;">Continue</button>
-                                <div v-if="wc_version != 1.0" class="pull-right" style="font-size: 18px;">
+                                <button @click.prevent="submit()" class="btn btn-primary pull-right" style="margin-left: 10px;">Continue</button>
+                                <div class="pull-right" style="font-size: 18px;">
                                     <strong>Estimated application fee: {{application_fee | toCurrency}}</strong><br>
                                     <strong>Estimated licence fee: {{licence_fee | toCurrency}}</strong><br>
                                 </div>
                             </div>
-                            </div>
                         </form>
+                        <div v-else>
+                            <div class="col-sm-12">
+                                <div class="row">
+                                    <label>
+                                        No matching licensed activities found.
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -76,61 +94,107 @@ import {
   helpers
 }
 from '@/utils/hooks'
+import { mapActions, mapGetters } from 'vuex'
 import utils from './utils'
+import internal_utils from '@/components/internal/utils'
 export default {
   data: function() {
     let vm = this;
     return {
-        licence_select : this.$route.params.licence_select,
-        behalf_of_org : this.$route.params.org_select,
-        behalf_of_proxy : this.$route.params.proxy_select,
-        yourself : this.$route.params.yourself,
-        "application": null,
+        licence_category : this.$route.params.licence_category,
+        licence_activity : this.$route.params.licence_activity,
+        application: null,
         agent: {},
-        activity_type :{
+        activity :{
             id:null,
-            activity:[]
+            purpose:[]
         },
         
         radio_selected : [],
         selected_activity:[],
         activity_type_showing : [],
         organisations:null,
-        licence_classes : {
+        licence_categories : {
             checked:false,
-            activity_type:[
+            activity:[
              { 
              	id:null,
                 selected:false,
-                activity:[]
+                purpose:[]
              }
             ]
         },
-        licence_class:{
-            id:null,
-            activity_type:[]
-        },
-        licence_type_name: '',
         "loading": [],
         form: null,
         pBody: 'pBody' + vm._uid,
         application_fee: 0,
         licence_fee: 0,
+        selected_apply_org_id_details : {},
+        selected_apply_proxy_id_details: {},
     }
   },
   components: {
   },
   computed: {
-    wc_version: function (){
-        return this.$root.wc_version;
-    }
+        ...mapGetters([
+            'selected_apply_org_id',
+            'selected_apply_proxy_id',
+            'selected_apply_licence_select',
+            'application_workflow_state',
+        ]),
+        applicationTitle: function() {
+            switch(this.selected_apply_licence_select) {
+                case 'new_activity':
+                    return 'Apply for a new activity';
+                break;
+                case 'amend_activity':
+                    return 'Amend one or more licensed activities';
+                break;
+                case 'renew_activity':
+                    return 'Renew one or more licensed activities';
+                break;
+                case 'reissue_activity':
+                    return 'Reissue one or more licensed activities';
+                break;
+                default:
+                    return 'Apply for a new licence';
+                break;
+            }
+        },
+        selectionLabel: function() {
+            return this.isAmendment ?
+            `Select the licence activity and purposes you wish to amend` :
+            this.isRenewal ?
+            `Select one or more activities and purposes you wish to renew` :
+            this.isReissue ?
+            `Select one or more activities and purposes you wish to reissue` :
+            `Select the class of licence you wish to apply for`;
+        },
+        categoryCount: function() {
+            return this.visibleLicenceCategories.length;
+        },
+        visibleLicenceCategories: function() {
+            return this.licence_categories;
+        },
+        isAmendment: function() {
+            return this.selected_apply_licence_select && this.selected_apply_licence_select === 'amend_activity'
+        },
+        isRenewal: function() {
+            return this.selected_apply_licence_select && this.selected_apply_licence_select === 'renew_activity'
+        },
+        isReissue: function() {
+            return this.selected_apply_licence_select && this.selected_apply_licence_select === 'reissue_activity'
+        }
   },
   methods: {
+    ...mapActions([
+        'setApplicationWorkflowState',
+    ]),
     submit: function() {
         let vm = this;
         swal({
             title: "Create Application",
-            text: "Are you sure you want to create a application ",
+            text: "Are you sure you want to create an application?",
             type: "question",
             showCancelButton: true,
             confirmButtonText: 'Accept'
@@ -141,183 +205,120 @@ export default {
         },(error) => {
         });
     },
-
     handleRadioChange: function(e,index){
         let vm=this
-        for(var i=0,_len=vm.licence_classes.length;i<_len;i++){
+        for(var i=0,_len=vm.licence_categories.length;i<_len;i++){
             if(i===index){
-                vm.licence_classes[i].checked = true;
+                vm.licence_categories[i].checked = true;
             }else{
-                for(var activity_type_index=0, len1=vm.licence_classes[i].activity_type.length; activity_type_index<len1; activity_type_index++){
-                        if (vm.licence_classes[i].activity_type[activity_type_index].selected){
-                            vm.licence_classes[i].activity_type[activity_type_index].selected=false;
-                            for(var activity_index=0, len2=vm.licence_classes[i].activity_type[activity_type_index].activity.length; activity_index<len2; activity_index++){
-                                vm.licence_classes[i].activity_type[activity_type_index].activity[activity_index].selected = false;
+                for(var activity_type_index=0, len1=vm.licence_categories[i].activity.length; activity_type_index<len1; activity_type_index++){
+                        if (vm.licence_categories[i].activity[activity_type_index].selected){
+                            vm.licence_categories[i].activity[activity_type_index].selected=false;
+                            for(var activity_index=0, len2=vm.licence_categories[i].activity[activity_type_index].purpose.length; activity_index<len2; activity_index++){
+                                vm.licence_categories[i].activity[activity_type_index].purpose[activity_index].selected = false;
                                 vm.application_fee = 0;
                                 vm.licence_fee = 0;
                             }    
                         }
                 }
-                vm.licence_classes[i].checked=false;
+                vm.licence_categories[i].checked=false;
             }
 
         }
-        console.log("This is the value to pass on",vm.licence_class);
-
     },
-    handleActivityTypeCheckboxChange:function(index,index1){
+    handleActivityCheckboxChange:function(index,index1){
         let vm = this
         var input = $(vm.$refs.selected_activity_type)[0];
-        if(vm.licence_classes[index].activity_type[index1].selected){
-            for(var activity_index=0, len2=vm.licence_classes[index].activity_type[index1].activity.length; activity_index<len2; activity_index++){
-                         vm.licence_classes[index].activity_type[index1].activity[activity_index].selected= false;
-                            }
+        if(vm.licence_categories[index].activity[index1].selected){
+            for(var activity_index=0, len2=vm.licence_categories[index].activity[index1].purpose.length; activity_index<len2; activity_index++){
+                vm.licence_categories[index].activity[index1].purpose[activity_index].selected = this.isAmendment || this.isRenewal;
+            }
         }
     },
-    handleActivityCheckboxChange:function(index,index1,index2,event){
-        let vm = this
-        var activity = vm.licence_classes[index].activity_type[index1].activity[index2]
-        if(event.target.checked){
-            vm.application_fee += Number(activity.base_application_fee);
-            vm.licence_fee += Number(activity.base_licence_fee);
-        } else {
-            vm.application_fee -= Number(activity.base_application_fee);
-            vm.licence_fee -= Number(activity.base_licence_fee);
-        }
+    handlePurposeCheckboxChange:function(index, event){
+        const purpose_ids = [].concat.apply([], this.licence_categories[index].activity.map(
+            activity => activity.purpose.filter(
+                purpose => purpose.selected || (purpose.id == event.target.id && event.target.checked)
+            ))).map(purpose => purpose.id);
+        this.$http.post('/api/application/estimate_price/', {
+                'purpose_ids': purpose_ids
+            }).then(res => {
+                this.application_fee = res.body.fees.application;
+                this.licence_fee = res.body.fees.licence;
+        }, err => {
+            console.log(err);
+        });
     },
     createApplication:function () {
         let vm = this;
-        // clear out licence class
-        vm.licence_class = {
-            id: null,
-            name: null,
-            activity_type: []
-        }
-        let count_total_licence_classes = 0
-        let count_total_activity_types = 0
+
+        let licence_purposes = [];
+        let count_total_licence_categories = 0
         let count_total_activities = 0
-        let count_selected_activities_this_loop = 0
+        let count_total_purposes = 0
+        let count_selected_purposes_this_loop = 0
         let data = new FormData()
-        vm.licence_type_name = ''
 
         // loop through level 1 and find selected licence class (radio option, only one)
-        for(var i=0,_len1=vm.licence_classes.length;i<_len1;i++){
+        for(var i=0,_len1=vm.licence_categories.length;i<_len1;i++){
 
             // if licence class selected
-            if(vm.licence_classes[i].checked){
+            if(vm.licence_categories[i].checked){
 
-                // set licence class information
-                vm.licence_class.id         = vm.licence_classes[i].id
-                vm.licence_class.name       = vm.licence_classes[i].name
-                vm.licence_class.short_name = vm.licence_classes[i].short_name
+                // loop through level 2 and find selected activity (checkboxes, one or more)
+                for(var j=0,_len2=vm.licence_categories[i].activity.length;j<_len2;j++){
 
-                // initialise licence_type_name
-                vm.licence_type_name        += vm.licence_classes[i].short_name + ' - '
+                    // if activity selected
+                    if(vm.licence_categories[i].activity[j].selected){
 
-                // loop through level 2 and find selected activity type (checkboxes, one or more)
-                for(var j=0,_len2=vm.licence_classes[i].activity_type.length;j<_len2;j++){
-
-                    // if activity type selected
-                    if(vm.licence_classes[i].activity_type[j].selected){
-
-                        // reset current loop total of selected activities for this activity type (level 3)
-                        count_selected_activities_this_loop = 0
+                        // reset current loop total of selected purposes for this activity (level 3)
+                        count_selected_purposes_this_loop = 0
 
                         // loop through level 3 and find selected activity (checkboxes, one or more)
-                        for(var k=0,_len3=vm.licence_classes[i].activity_type[j].activity.length;k<_len3;k++){
+                        for(var k=0,_len3=vm.licence_categories[i].activity[j].purpose.length;k<_len3;k++){
 
                             // if activity selected
-                            if(vm.licence_classes[i].activity_type[j].activity[k].selected){
+                            if(vm.licence_categories[i].activity[j].purpose[k].selected){
+                                count_selected_purposes_this_loop++;
+                                count_total_purposes++;
 
-                                // if this is the first level 3 item
-                                // start of list in licence_type_name for the selected activity type
-                                if(count_selected_activities_this_loop == 0){
-
-                                    // add activity type to the licence_class.activity_type list
-                                    // only do if at least one activity is selected (hence why it is in this loop)
-                                    vm.licence_class.activity_type.push({
-                                        id:         vm.licence_classes[i].activity_type[j].id,
-                                        name:       vm.licence_classes[i].activity_type[j].name,
-                                        short_name: vm.licence_classes[i].activity_type[j].short_name
-                                    })
-
-                                    // if this is not the first level 2 item, prepend licence_type_name with a comma
-                                    if(count_total_activity_types > 0){
-                                        vm.licence_type_name += ', '
-                                    }
-
-                                    // prepend licence_type_name with an open parentheses
-                                    vm.licence_type_name += vm.licence_classes[i].activity_type[j].short_name + ' ('
-
-                                    // initialise activity list for selected activity type
-                                    vm.licence_class.activity_type[count_total_activity_types].activity = []
-
-                                }
-
-                                // if this is not the first level 3 item, prepend licence_type_name with a comma
-                                if(count_selected_activities_this_loop > 0){
-                                    vm.licence_type_name += ', '
-                                }
-
-                                // add activity to the licence_class.activity_type.activity list
-                                vm.licence_class.activity_type[count_total_activity_types].activity.push({
-                                    id:     vm.licence_classes[i].activity_type[j].activity[k].id,
-                                    name:   vm.licence_classes[i].activity_type[j].activity[k].name,
-                                    short_name:   vm.licence_classes[i].activity_type[j].activity[k].short_name
-                                })
-
-                                // add activity short name to licence_type_name
-                                vm.licence_type_name += vm.licence_classes[i].activity_type[j].activity[k].short_name
-
-                                count_selected_activities_this_loop++;
-                                count_total_activities++;
-
+                                licence_purposes.push(vm.licence_categories[i].activity[j].purpose[k].id);
                                 // end of selected activity loop
                         	}
                         }
 
-                        // only if there is at least one activity selected for this activity type
-                        if(count_selected_activities_this_loop > 0){
-
-                            // list activities for each activity type inside parentheses for licence_type_name
-                            vm.licence_type_name += ')'
-                            count_total_activity_types++;
+                        // only if there is at least one activity selected for this activity
+                        if(count_selected_purposes_this_loop > 0){
+                            count_total_activities++;
                         }
 
-                        // end of selected activity type loop
+                        // end of selected activity loop
                     }
 
                 }
 
-                count_total_licence_classes++; // this should always be 1 at end of full loop
+                count_total_licence_categories++; // this should always be 1 at end of full loop
 
                 // end of selected licence class loop
             }
         }
 
         // if no selections, display error do not continue
-        if(count_total_activities == 0){
+        if(count_total_purposes == 0){
             swal({
                 title: "Create Application",
                 text: "Please ensure at least one licence purpose is selected",
                 type: "error",
             })
         } else {
-            data.org_applicant=vm.behalf_of_org
-            data.proxy_applicant=vm.behalf_of_proxy
-            data.licence_class_data=vm.licence_class
-            data.licence_type_name=vm.licence_type_name
-            data.application_fee=vm.application_fee
-            data.licence_fee=vm.licence_fee
-            console.log(' ---- application apply licence createApplication() ---- ');
-            console.log(vm.application_fee)
-            console.log(vm.licence_fee)
-            console.log(data.licence_type_name);
-            console.log(data.licence_class)
-            console.log(' ==== licence class data ==== ')
-            console.log(JSON.stringify(data));
+            data.organisation_id=vm.selected_apply_org_id;
+            data.proxy_id=vm.selected_apply_proxy_id;
+            data.application_fee=vm.application_fee;
+            data.licence_fee=vm.licence_fee;
+            data.licence_purposes=licence_purposes;
+            data.application_type = vm.selected_apply_licence_select;
             vm.$http.post('/api/application.json',JSON.stringify(data),{emulateJSON:true}).then(res => {
-                console.log(res.body);
+                vm.setApplicationWorkflowState({bool: false});
                 vm.application = res.body;
                 vm.$router.push({
                     name:"draft_application",
@@ -325,23 +326,46 @@ export default {
                 });
             }, err => {
                 console.log(err);
+                swal(
+                    'Application Error',
+                    helpers.apiVueResourceError(err),
+                    'error'
+                )
             });
         }
     },
     
   },
+  mounted: function() {
+    let initialisers = [
+        utils.fetchLicenceAvailablePurposes({
+            "application_type": this.selected_apply_licence_select,
+            "licence_category": this.licence_category,
+            "licence_activity": this.licence_activity,
+            "proxy_id": this.selected_apply_proxy_id,
+            "organisation_id": this.selected_apply_org_id,
+        }),
+        this.selected_apply_org_id ? utils.fetchOrganisation(this.selected_apply_org_id) : '',
+        this.selected_apply_proxy_id ? internal_utils.fetchUser(this.selected_apply_proxy_id) : '',
+    ];
+
+    Promise.all(initialisers).then(data => {
+        this.licence_categories = data[0];
+        this.selected_apply_org_id_details = data[1];
+        this.selected_apply_proxy_id_details = data[2];
+    });
+  },
   beforeRouteEnter:function(to,from,next){
-        let initialisers = [
-
-            utils.fetchLicenceClasses()
-        ]
-        Promise.all(initialisers).then(data => {
-            next(vm => {
-
-                vm.licence_classes = data[0]
+    next(vm => {
+        // Sends the user back to the first application workflow screen if licence_select is null
+        // or workflow state was interrupted (e.g. lost from page refresh)
+        if(vm.selected_apply_licence_select == null || !vm.application_workflow_state) {
+            return vm.$router.push({
+                name: "apply_application_organisation",
             });
-        });
-    },
+        }
+    });
+  },
 }
 </script>
 
@@ -349,7 +373,7 @@ export default {
 div.margin-left-20 {
     margin-left: 20px;
 }
-div.activity-clear-left {
+div.purpose-clear-left {
     clear: left;
 }
 </style>

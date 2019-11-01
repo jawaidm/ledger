@@ -5,58 +5,46 @@
             <template v-if="help_text">
                 <HelpText :help_text="help_text" />
             </template>
-            <template v-if="help_text_assessor && assessorMode">
-                <HelpText :help_text="help_text_assessor" assessorMode={assessorMode} isForAssessor={true} />
-            </template> 
 
             <template v-if="help_text_url">
                 <HelpTextUrl :help_text_url="help_text_url" />
             </template>
-            <template v-if="help_text_assessor_url && assessorMode">
-                <HelpTextUrl :help_text_url="help_text_assessor_url" assessorMode={assessorMode} isForAssessor={true} />
-            </template> 
 
+            <CommentBlock 
+                :label="label"
+                :name="name"
+                :field_data="field_data"
+                />
 
-            <template v-if="assessorMode && !assessor_readonly && wc_version != 1.0">
-                <template v-if="!showingComment">
-                    <a v-if="comment_value != null && comment_value != undefined && comment_value != ''" href="" @click.prevent="toggleComment"><i style="color:red" class="fa fa-comment-o">&nbsp;</i></a>
-                    <a v-else href="" @click.prevent="toggleComment"><i class="fa fa-comment-o">&nbsp;</i></a>
-                </template>
-                <a href="" v-else  @click.prevent="toggleComment"><i class="fa fa-ban">&nbsp;</i></a>
-            </template>
             <span v-if="min!='' || max!=''">
-                <input :readonly="readonly" :type="type" :min="min" :max="max" class="form-control" :name="name" :value="value" :required="isRequired" />
-            <span>
+                <input :readonly="readonly" :type="type" :min="min" :max="max" class="form-control" :name="name" v-model="field_data.value" :required="isRequired" />
+            </span>
             <span v-else>
-                <input :readonly="readonly" :type="type" class="form-control" :name="name" :value="value" :required="isRequired" />
-            <span>
+                <input :readonly="readonly" :type="type" class="form-control" :name="name" v-model="value" :required="isRequired" />
+            </span>
         </div>
-        <Comment :question="label" :readonly="assessor_readonly" :name="name+'-comment-field'" v-show="showingComment && assessorMode" :value="comment_value"/> 
     </div>
 </template>
 
 <script>
-import Comment from './comment.vue'
-import HelpText from './help_text.vue'
-import HelpTextUrl from './help_text_url.vue'
+import CommentBlock from './comment_block.vue';
+import HelpText from './help_text.vue';
+import HelpTextUrl from './help_text_url.vue';
+import { mapActions } from 'vuex';
 export default {
-    props:["type","name","id", "comment_value","value","isRequired","help_text","help_text_assessor","assessorMode","label","readonly","assessor_readonly", "help_text_url", "help_text_assessor_url", "min", "max"],
-    components: {Comment, HelpText, HelpTextUrl},
+    props:["type","name","id", "field_data","isRequired","help_text","label","readonly", "help_text_url", "min", "max"],
+    components: {CommentBlock, HelpText, HelpTextUrl},
     data(){
         let vm = this;
         return {
-            showingComment: false
         }
     },
     methods: {
-        toggleComment(){
-            this.showingComment = ! this.showingComment;
-        }
+        ...mapActions([
+            'setFormValue',
+        ]),
     },
     computed: {
-        wc_version: function (){
-            return this.$root.wc_version;
-        },
     }
 }
 </script>

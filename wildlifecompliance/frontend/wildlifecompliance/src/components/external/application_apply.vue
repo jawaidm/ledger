@@ -1,10 +1,13 @@
 <template lang="html">
-    <div class="container" >
+    <div class="container" v-if="application">
         <div class="row">
             <div class="col-sm-12">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h3 class="panel-title">New Application
+                        <h3 class="panel-title">New Application for
+                            <span v-if="selected_apply_org_id">{{ selected_apply_org_id_details.name }} ({{ selected_apply_org_id_details.abn }})</span>
+                            <span v-if="selected_apply_proxy_id">{{ selected_apply_proxy_id_details.first_name }} {{ selected_apply_proxy_id_details.last_name }} ({{ selected_apply_proxy_id_details.email }})</span>
+                            <span v-if="!selected_apply_org_id && !selected_apply_proxy_id">yourself</span>
                             <a :href="'#'+pBody" data-toggle="collapse"  data-parent="#userInfo" expanded="true" :aria-controls="pBody">
                                 <span class="glyphicon glyphicon-chevron-up pull-right "></span>
                             </a>
@@ -18,25 +21,23 @@
                                 </div>
                                 <div class="radio">
                                     <label>
-                                      <input :disabled="hasOrgs" type="radio" name="select_licence" v-model="licence_select" value="New_licence" > apply for a new licence?
+                                      <input type="radio" name="select_licence" v-model="licence_select" value="new_licence" > apply for a new licence?
                                     </label>
                                 </div>
-                                <div v-if="wc_version != 1.0">
                                 <div class="radio">
                                     <label>
-                                      <input type="radio" name="select_licence" v-model="licence_select" value="New_activity"> apply for a new licensed activity on your licence?
+                                      <input type="radio" name="select_licence" v-model="licence_select" value="new_activity"> apply for a new licensed activity on your licence?
                                     </label>
                                 </div>
                                 <div class="radio">
                                      <label>
-                                      <input type="radio" name="select_licence" v-model="licence_select" value="Amend_activity"> amend one or more licensed activities on your licence?
+                                      <input type="radio" name="select_licence" v-model="licence_select" value="amend_activity"> amend one or more licensed activities on your licence?
                                     </label>
                                 </div>
                                 <div class="radio">
                                     <label>
-                                      <input type="radio" name="select_licence" v-model="licence_select" value="Renew_activity"> renew one or more licensed activities on your licence?
+                                      <input type="radio" name="select_licence" v-model="licence_select" value="renew_activity"> renew one or more licensed activities on your licence?
                                     </label>
-                                </div>
                                 </div>
                             </div>
                             <div class="col-sm-12">
@@ -56,15 +57,18 @@ import {
   helpers
 }
 from '@/utils/hooks'
+import { mapActions, mapGetters } from 'vuex'
 import utils from './utils'
+import internal_utils from '@/components/internal/utils'
 export default {
   data: function() {
     let vm = this;
     return {
         "application": null,
         agent: {},
-        behalf_of: '',
-        profile: {
+        selected_apply_org_id_details : {},
+        selected_apply_proxy_id_details: {},
+        current_user: {
             wildlifecompliance_organisations: []
         },
         licence_select:null,
@@ -76,55 +80,61 @@ export default {
   components: {
   },
   computed: {
+    ...mapGetters([
+        'selected_apply_org_id',
+        'selected_apply_proxy_id',
+        'application_workflow_state',
+    ]),
     isLoading: function() {
       return this.loading.length > 0
     },
-    org: function() {
-        let vm = this;
-        if (vm.behalf_of != '' || vm.behalf_of != 'other'){
-            return vm.profile.wildlifecompliance_organisations.find(org => parseInt(org.id) === parseInt(vm.behalf_of)).name;
-        }
-        return '';
-    },
-    wc_version: function (){
-        return this.$root.wc_version;
-    }
   },
   methods: {
+    ...mapActions([
+        'setApplyLicenceSelect',
+    ]),
     submit: function() {
-        let vm = this;
-         vm.$router.push({
-                      name:"apply_application_organisation",
-                      params:{licence_select:vm.licence_select}
-                  });
-         console.log(vm.licence_select);
+        this.setApplyLicenceSelect({licence_select: this.licence_select});
+        this.$router.replace({
+            name: "apply_application_licence",
+        });
     },
-    createApplication:function () {
-        let vm = this;
-        vm.$http.post('/api/application.json',{
-            behalf_of: vm.behalf_of
-        }).then(res => {
-              vm.application = res.body;
-              
-          },
-          err => {
-            console.log(err);
-          });
-    }
   },
   mounted: function() {
     let vm = this;
     vm.form = document.forms.new_application;
   },
   beforeRouteEnter: function(to, from, next) {
-    let initialisers = [
-        utils.fetchProfile(),
-        //utils.fetchApplication(to.params.application_id)
-    ]
     next(vm => {
+        // Sends the user back to the first application workflow screen if workflow state
+        // was interrupted (e.g. lost from page refresh)
+        if(!vm.application_workflow_state) {
+            return vm.$router.replace({
+                name: "apply_application_organisation",
+            });
+        }
+        const initialisers = [
+            utils.fetchCurrentUser(),
+            utils.fetchCurrentActiveLicenceApplication({
+                    "proxy_id": vm.selected_apply_proxy_id,
+                    "organisation_id": vm.selected_apply_org_id,
+                }),
+            vm.selected_apply_org_id ? utils.fetchOrganisation(vm.selected_apply_org_id) : '',
+            vm.selected_apply_proxy_id ? internal_utils.fetchUser(vm.selected_apply_proxy_id) : '',
+        ]
         Promise.all(initialisers).then(data => {
-            vm.profile = data[0];
-            //vm.application = data[1];
+            vm.current_user = data[0];
+            if(data[1].application == null) {
+                vm.setApplyLicenceSelect({licence_select: 'new_licence'});
+                // use $router.replace here because we want the back button to return to
+                // apply_application_organisation if used on the apply_application_licence screen in this case
+                return vm.$router.replace({
+                    name: "apply_application_licence",
+                });
+            }
+            vm.application = data[1].application;
+            vm.selected_apply_org_id_details = data[2];
+            vm.selected_apply_proxy_id_details = data[3];
         })
     })
   }

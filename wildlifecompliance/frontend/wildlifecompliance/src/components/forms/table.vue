@@ -5,29 +5,21 @@
             <template v-if="help_text">
                 <HelpText :help_text="help_text" />
             </template>
-            <template v-if="help_text_assessor && assessorMode">
-                <HelpText :help_text="help_text_assessor" assessorMode={assessorMode} isForAssessor={true} />
-            </template> 
 
             <template v-if="help_text_url">
                 <HelpTextUrl :help_text_url="help_text_url" />
             </template>
-            <template v-if="help_text_assessor_url && assessorMode">
-                <HelpTextUrl :help_text_url="help_text_assessor_url" assessorMode={assessorMode} isForAssessor={true} />
-            </template> 
 
-            <template v-if="assessorMode && !assessor_readonly && wc_version != 1.0">
-                <template v-if="!showingComment">
-                    <a v-if="comment_value != null && comment_value != undefined && comment_value != ''" href="" @click.prevent="toggleComment"><i style="color:red" class="fa fa-comment-o">&nbsp;</i></a>
-                    <a v-else href="" @click.prevent="toggleComment"><i class="fa fa-comment-o">&nbsp;</i></a>
-                </template>
-                <a href="" v-else  @click.prevent="toggleComment"><i class="fa fa-ban">&nbsp;</i></a>
-            </template>
+            <CommentBlock 
+                :label="label"
+                :name="name"
+                :field_data="field_data"
+                />
 
             <!-- the next line required for saving value JSON-ified table to application.data - creates an invisible field -->
-            <textarea readonly="readonly" class="form-control" rows="5" :name="name" style="display:none;">{{ value }}</textarea><br/>
+            <textarea readonly="readonly" class="form-control" rows="5" :name="name" style="display:none;">{{ field_data.value }}</textarea><br/>
 
-            <div id="content-editable-table">
+            <div class="content-editable-table">
               <table class="table table-striped editable-table">
                 <thead v-if="table.thead.length">
                   <tr>
@@ -56,51 +48,27 @@
                 </tbody>
 
               </table>
-
-              <!-- for debugging -->
-              <!--
-              <pre class="output">
-                {{ value }}
-              </pre>
-              <pre class="output">
-                {{ headers }}
-              </pre>
-              -->
             </div>
 
         </div>
-        <!--<Comment :question="label" :readonly="assessor_readonly" :name="name+'-comment-field'" v-show="showingComment && assessorMode" :value="comment_value"/> -->
     </div>
 </template>
 
 <script>
-import Comment from './comment.vue'
-import HelpText from './help_text.vue'
-import HelpTextUrl from './help_text_url.vue'
-export default {
-    //props:["name","value", "id", "isRequired", "help_text","help_text_assessor","assessorMode","label","readonly","comment_value","assessor_readonly", "help_text_url", "help_text_assessor_url"],
+import CommentBlock from './comment_block.vue';
+import HelpText from './help_text.vue';
+import HelpTextUrl from './help_text_url.vue';
+
+const TableBlock = {
     props:{
-        headers: [],
+        headers: String,  // Input received as String, later converted to JSON within data() below
         name: String,
         label: String,
         id: String,
         isRequired: String,
-        comment_value: String,
-        assessor_readonly: Boolean,
         help_text: String,
-        help_text_assessor: String,
         help_text_url: String,
-        help_text_assessor_url: String,
-        assessorMode:{
-            default:function(){
-                return false;
-            }
-        },
-        value:{
-            default:function () {
-                return null;
-            }
-        },
+        field_data: Object,
         readonly:Boolean,
 
         /*
@@ -122,7 +90,7 @@ export default {
 
     },
 
-    components: {Comment, HelpText, HelpTextUrl},
+    components: { CommentBlock, HelpText, HelpTextUrl },
 
     /* Example schema config
        {
@@ -134,7 +102,7 @@ export default {
     */
     data(){
         let vm = this;
-        var value  =JSON.parse(vm.value);
+        const value  = this.field_data.value ? JSON.parse(this.field_data.value) : null;
 
         var headers = JSON.parse(vm.headers)
         var col_headers = Object.keys(headers);
@@ -142,7 +110,7 @@ export default {
 
         // setup initial empty row for display
         var init_row = [];
-        for(var i = 0, length = col_headers.length; i < length; i++) { init_row.push('')  }
+        for(var i = 0, length = col_headers.length; i < length; i++) { init_row.push('') }
 
         if (value == null) {
             vm.table = {
@@ -160,26 +128,22 @@ export default {
             }
         }
 
+        let data = {
+        }
         if(vm.readonly) {
-            return { isClickable: "return false;" }
+            data.isClickable = "return false;";
         } else {
-            return { isClickable: "return true;" }
+            data.isClickable = "return true;";
         }
 
-        return {
-            showingComment: false,
-        }
+        return data;
 
     },
     methods: {
-        toggleComment(){
-            this.showingComment = ! this.showingComment;
-        },
-
         updateTableJSON: function() {
           let vm = this;
           vm.tableJSON = JSON.stringify(vm.table);
-          vm.value = vm.tableJSON;
+          this.field_data.value = vm.tableJSON;
         },
 
         addRow: function() {
@@ -209,9 +173,6 @@ export default {
     },
 
     computed:{
-        wc_version: function (){
-            return this.$root.wc_version;
-        },
     },
 
 
@@ -220,12 +181,11 @@ export default {
 
         vm.updateTableJSON();
 
-        //$('#content-editable-table').on('change', '[type="text"]', function() {
-        $('#content-editable-table').on('change', '.tbl_input', function() {
+        $('.content-editable-table').on('change', '.tbl_input', function() {
             vm.updateTableJSON();
         });
 
-        $("#content-editable-table").on("click", ".ibtnDel", function (event) {
+        $(".content-editable-table").on("click", ".ibtnDel", function (event) {
             $(this).closest("tr").remove();
         });
 
@@ -245,6 +205,8 @@ export default {
 
     }
 }
+
+export default TableBlock;
 </script>
 
 <style scoped lang="css">
@@ -253,14 +215,11 @@ export default {
       width: 100%;
     }
 
-    .editable-table {
-
-      [type="text"] {
+    .editable-table[type="text"] {
         background: none;
         border: none;
         display: block;
         width: 100%;
-      }
     }
 
     .output {

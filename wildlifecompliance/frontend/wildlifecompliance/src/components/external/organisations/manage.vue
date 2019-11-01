@@ -214,7 +214,7 @@ import { api_endpoints, helpers } from '@/utils/hooks'
 import datatable from '@vue-utils/datatable.vue'
 import utils from '../utils'
 import api from '../api'
-import AddContact from '@common-utils/add_contact.vue'
+import AddContact from '@common-components/add_contact.vue'
 export default {
     name: 'Organisation',
     data () {
@@ -233,7 +233,8 @@ export default {
                 last_name: null,
                 email: null,
                 mobile_number: null,
-                phone_number: null
+                phone_number: null,
+                user_role: {}
             },
              
             loading: [],
@@ -417,7 +418,7 @@ export default {
                         mRender:function (data,type,full) {
                             let links = '';
                             let name = full.first_name + ' ' + full.last_name;
-                            if (full.user_status =='Draft' ){
+                            if (full.user_status.id == 'draft' ){
                                 links +=  `<a data-email='${full.email}' data-name='${name}' data-id='${full.id}' class="remove-contact">Remove</a><br/>`;
                                 
                             }
@@ -452,27 +453,27 @@ export default {
                         mRender:function (data,type,full) {
                             let links = '';
                             if (vm.myorgperms.is_admin){
-                                if(full.user_status == 'Pending'){
+                                if(full.user_status.id == 'pending'){
                                     links +=  `<a data-email='${full.email}' data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="accept_contact">Accept</a><br/>`;
                                     links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="decline_contact">Decline</a><br/>`;
-                                } else if(full.user_status == 'Suspended'){
+                                } else if(full.user_status.id == 'suspended'){
                                     links +=  `<a data-email='${full.email}' data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="reinstate_contact">Reinstate</a><br/>`;
-                                } else if(full.user_status == 'Active'){
+                                } else if(full.user_status.id == 'active'){
                                     links +=  `<a data-email='${full.email}' data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="unlink_contact">Unlink</a><br/>`;
                                     links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="suspend_contact">Suspend</a><br/>`;
-                                    if(full.user_role == 'Organisation User'){
+                                    if(full.user_role.id == 'organisation_user'){
                                         links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="make_admin_contact">Make Organisation Admin</a><br/>`;
                                         links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="make_consultant">Make Organisation Consultant</a><br/>`;
-                                    } else if (full.user_role == 'Organisation Admin') {
+                                    } else if (full.user_role.id == 'organisation_admin') {
                                         links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="make_user_contact">Make Organisation User</a><br/>`;
                                         links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="make_consultant">Make Organisation Consultant</a><br/>`;
                                     } else {
                                         links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="make_admin_contact">Make Organisation Admin</a><br/>`;
                                         links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="make_user_contact">Make Organisation User</a><br/>`;
                                     }
-                                } else if(full.user_status == 'Unlinked'){
+                                } else if(full.user_status.id == 'unlinked'){
                                     links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="relink_contact">Reinstate</a><br/>`;
-                                } else if(full.user_status == 'Declined'){
+                                } else if(full.user_status.id == 'declined'){
                                     links +=  `<a data-email='${full.email}'  data-firstname='${full.first_name}' data-lastname='${full.last_name}' data-id='${full.id}' data-mobile='${full.mobile_number}' data-phone='${full.phone_number}' class="accept_declined_contact">Accept (Previously Declined)</a><br/>`;
                                 }
                             }        
@@ -796,9 +797,7 @@ export default {
                         }, (error) => {
                             let error_msg = '<br/>';
                             for (var key in error.body) {
-                              if (error.body[key].indexOf('last_admin')>-1) {
-                                error_msg += 'The Organisation will have no Administrator.<br/>';
-                              }
+                              if (key == 'non_field_errors') { error_msg += error.body[key] + '<br/>'; }
                             }
                             swal(
                               'Unlink User',
@@ -898,9 +897,7 @@ export default {
                         }, (error) => {
                             let error_msg = '<br/>';
                             for (var key in error.body) {
-                              if (error.body[key].indexOf('last_admin')>-1) {
-                                error_msg += 'The Organisation will have no Administrator.<br/>';
-                              }
+                              if (key == 'non_field_errors') { error_msg += error.body[key] + '<br/>'; }
                             }
                             swal(
                               'Organisation User',
@@ -956,9 +953,7 @@ export default {
                         }, (error) => {
                             let error_msg = '<br/>';
                             for (var key in error.body) {
-                              if (error.body[key].indexOf('last_admin')>-1) {
-                                error_msg += 'The Organisation will have no Administrator.<br/>';
-                              }
+                              if (key == 'non_field_errors') { error_msg += error.body[key] + '<br/>'; }
                             }
                             swal(
                               'Suspend User',
@@ -1076,12 +1071,12 @@ export default {
                 let phone = $(e.target).data('phone');
                 let role = 'consultant';
 
-                vm.contact_user.first_name= firstname
-                vm.contact_user.last_name= lastname
-                vm.contact_user.email= email
-                vm.contact_user.mobile_number= mobile
-                vm.contact_user.phone_number= phone
-                vm.contact_user.user_role= role
+                vm.contact_user.first_name= firstname;
+                vm.contact_user.last_name= lastname;
+                vm.contact_user.email= email;
+                vm.contact_user.mobile_number= mobile;
+                vm.contact_user.phone_number= phone;
+                vm.contact_user.user_role.id = role;
 
                 swal({
                     title: "Organisation Consultant",
@@ -1105,9 +1100,7 @@ export default {
                         }, (error) => {
                             let error_msg = '<br/>';
                             for (var key in error.body) {
-                              if (error.body[key].indexOf('last_admin')>-1) {
-                                error_msg += 'The Organisation will have no Administrator.<br/>';
-                              }
+                              if (key == 'non_field_errors') { error_msg += error.body[key] + '<br/>'; }
                             }
                             swal(
                               'Organisation Consultant',
@@ -1218,9 +1211,7 @@ export default {
                     }, (error) => {
                         let error_msg = '<br/>';
                         for (var key in error.body) {
-                          if (error.body[key].indexOf('last_admin')>-1) {
-                            error_msg += 'The Organisation will have no Administrator.<br/>';
-                          }
+                          if (key == 'non_field_errors') { error_msg += error.body[key] + '<br/>'; }
                         }
                         swal(
                           'Unlink User',

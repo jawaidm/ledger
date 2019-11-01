@@ -1,0 +1,23 @@
+{% extends 'wildlifecompliance/base.html' %}
+{% load static %}
+{% block content %}
+    <div class="container">
+        <div class="well">
+            <div class="row"><div class="col-sm-12">
+                <h2>Success!</h2>
+                <p>A confirmation email has been sent to {{ offender }}. </p>
+            </div></div>
+        </div>
+        <div class="row"><div class="col-sm-12" style="margin-top: 1em">
+            {% if request.user.email == offender or request.user.is_staff %}
+                {% if request.user.is_authenticated %}
+                    <p>Infringement notice: {{ sanction_outcome.lodgement_number }}</p>
+                    <p>Invoice number: {{ fee_invoice.number }}</p>
+                    <p>Reference: {{ fee_invoice.reference }}</p>
+                {% endif %}
+            {% else %}
+                <p style="font-size: 1.5rem; font-weight: bold;">You do not have permission to access the confirmation or invoice for this payment.</p>
+            {% endif %}
+        </div></div>
+    </div>
+{% endblock %}

@@ -40,15 +40,12 @@ import {
     helpers
 } from "@/utils/hooks.js"
 export default {
-    name:'Add-Organisation-Contact',
+    name:'Send-to-Assessor',
     components:{
         modal,
         alert
     },
     props:{
-            application_id:{
-                type:Number,
-            },
     },
     data:function () {
         let vm = this;
@@ -58,8 +55,8 @@ export default {
             assessment: {
                 assessor_group_name:null,
                 assessor_group:null,
-                application:vm.application_id,
-                licence_activity_type:null
+                application: this.$store.getters.application_id,
+                licence_activity:null,
             },
             assessor_group:null,
             assessingApplication:false,

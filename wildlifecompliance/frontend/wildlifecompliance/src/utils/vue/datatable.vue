@@ -1,6 +1,6 @@
 <template lang="html">
    <div id="DataTable" >
-      <table class="hover table table-striped table-bordered dt-responsive nowrap" cellspacing="0" width="100%" :id="id">
+      <table :class="stylingClass" cellspacing="0" width="100%" :id="id">
             <thead>
                 <tr>
                     <th :data-class="(i == 0 )? 'expand':null" v-for="(header,i) in dtHeaders"> {{ header}}</th>
@@ -27,6 +27,14 @@ module.exports = {
      },
      id:{
          required:true
+     },
+     onMount: {
+         type: Function,
+         default: () => {}
+     },
+     // pass a single blank char to allow wrapped cols
+     parentStyle: {
+         type: String,
      }
    },
    data : function () {
@@ -36,7 +44,13 @@ module.exports = {
       }
    },
    computed:{
-
+       stylingClass: function() {
+           if (!this.parentStyle) {
+               return 'compact hover table table-striped table-bordered dt-responsive parentClass nowrap';
+           } else {
+               return 'compact hover table table-striped table-bordered dt-responsive parentClass' + this.parentStyle;
+           }
+       },
    },
    methods:{
        initEvents: function () {
@@ -74,10 +88,10 @@ module.exports = {
        }
    },
    mounted:function () {
-      let vm = this;
-      vm.table =$('#'+vm.id);
+      this.table = $(`#${this.id}`);
       $.fn.dataTable.ext.errMode = 'throw';
-      vm.initEvents();
+      this.initEvents();
+      this.onMount()
    }
 };
 </script>
@@ -150,6 +164,7 @@ module.exports = {
     }
     div.dataTables_filter input {
         margin-left: 10px;
+        margin-right: 10px;
         display: inline-block;
     }
     div.dataTables_length select {
@@ -169,5 +184,8 @@ module.exports = {
         div.dataTables_filter, div.dataTables_paginate {
              float:right;
         }
+    }
+    .dataTables_wrapper .dt-buttons{
+    float: right;
     }
 </style>

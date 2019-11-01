@@ -11,7 +11,7 @@
         </div>
     </div>
     <ApplicationDashTable level='external' :url='applications_url'/>
-    <div v-if="wc_version != 1.0">
+    <div>
         <LicenceDashTable level='external' :url='licences_url'/>
         <ReturnDashTable level='external' :url='returns_url'/>
     </div>
@@ -20,9 +20,9 @@
 <script>
 
 import datatable from '@/utils/vue/datatable.vue'
-import ApplicationDashTable from '@common-utils/applications_dashboard.vue'
-import LicenceDashTable from '@common-utils/licences_dashboard.vue'
-import ReturnDashTable from '@common-utils/returns_dashboard.vue'
+import ApplicationDashTable from '@common-components/applications_dashboard.vue'
+import LicenceDashTable from '@common-components/licences_dashboard.vue'
+import ReturnDashTable from '@common-components/returns_dashboard.vue'
 import {
   api_endpoints,
   helpers
@@ -33,22 +33,19 @@ export default {
     data() {
         let vm = this;
         return {
-            applications_url: helpers.add_endpoint_json(api_endpoints.applications,'user_list'),
-            licences_url: helpers.add_endpoint_json(api_endpoints.licences,'user_list'),
-            returns_url:helpers.add_endpoint_json(api_endpoints.returns,'user_list'),
+            applications_url: helpers.add_endpoint_join(api_endpoints.applications_paginated,'external_datatable_list/?format=datatables'),
+            licences_url: helpers.add_endpoint_join(api_endpoints.licences_paginated,'external_datatable_list/?format=datatables'),
+            returns_url: helpers.add_endpoint_join(api_endpoints.returns_paginated,'user_datatable_list/?format=datatables'),
             empty_list: '/api/empty_list',
         }
     },
     components:{
         ApplicationDashTable,
         LicenceDashTable,
-        ReturnDashTable
+        ReturnDashTable,
     },
     watch: {},
     computed: {
-        wc_version: function (){
-            return this.$root.wc_version;
-        }
     },
     methods: {
     },

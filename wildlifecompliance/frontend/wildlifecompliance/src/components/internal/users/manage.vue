@@ -10,7 +10,7 @@
             <div class="col-md-9">
                 <ul class="nav nav-tabs">
                     <li class="active"><a data-toggle="tab" :href="'#'+dTab">Details</a></li>
-                    <li><a data-toggle="tab" :href="'#'+oTab">Other</a></li>
+                    <li><a data-toggle="tab" :href="'#'+oTab">Licensing</a></li>
                 </ul>
                 <div class="tab-content">
                     <div :id="dTab" class="tab-pane fade in active">
@@ -243,11 +243,11 @@
 import Vue from 'vue'
 import { api_endpoints, helpers } from '@/utils/hooks'
 import datatable from '@vue-utils/datatable.vue'
-import AddContact from '@common-utils/add_contact.vue'
-import ApplicationDashTable from '@common-utils/applications_dashboard.vue'
-import LicenceDashTable from '@common-utils/licences_dashboard.vue'
-import ReturnDashTable from '@common-utils/returns_dashboard.vue'
-import CommsLogs from '@common-utils/comms_logs.vue'
+import AddContact from '@common-components/add_contact.vue'
+import ApplicationDashTable from '@common-components/applications_dashboard.vue'
+import LicenceDashTable from '@common-components/licences_dashboard.vue'
+import ReturnDashTable from '@common-components/returns_dashboard.vue'
+import CommsLogs from '@common-components/comms_logs.vue'
 import utils from '../utils'
 import api from '../api'
 export default {
@@ -263,7 +263,7 @@ export default {
             dTab: 'dTab'+vm._uid,
             oTab: 'oTab'+vm._uid,
             user: {
-                address: {},
+                residential_address: {},
                 wildlifecompliance_organisations: []
             },
             loading: [],
@@ -279,8 +279,8 @@ export default {
             activate_tables: false,
             comms_url: helpers.add_endpoint_json(api_endpoints.users,vm.$route.params.user_id+'/comms_log'),
             logs_url: helpers.add_endpoint_json(api_endpoints.users,vm.$route.params.user_id+'/action_log'),
-            applications_url: helpers.add_endpoint_json(api_endpoints.users,vm.$route.params.user_id+'/applications'),
-            licences_url: api_endpoints.licences+'?user_id='+vm.$route.params.user_id,
+            applications_url: api_endpoints.applications_paginated+'internal_datatable_list?user_id='+vm.$route.params.user_id,
+            licences_url: api_endpoints.licences_paginated+'internal_datatable_list?user_id='+vm.$route.params.user_id,
             returns_url: api_endpoints.returns+'?user_id='+vm.$route.params.user_id,
             orgRequest_pending: [],
         }
@@ -439,10 +439,9 @@ export default {
         unlinkUser: function(org){
             let vm = this;
             let org_name = org.name;
-
             swal({
                 title: "Unlink From Organisation",
-                text: "Are you sure you want to be unlinked from "+org.name+" ?",
+                text: "Are you sure you want to unlink this user from "+org.name+" ?",
                 type: "question",
                 showCancelButton: true,
                 confirmButtonText: 'Accept'
@@ -451,21 +450,23 @@ export default {
                     vm.$http.post(helpers.add_endpoint_json(api_endpoints.organisations,org.id+'/unlink_user'),JSON.stringify(vm.user),{
                         emulateJSON:true
                     }).then((response) => {
-                        Vue.http.get(api_endpoints.profile).then((response) => {
-                            vm.profile = response.body
+                        vm.$http.get(helpers.add_endpoint_json(api_endpoints.users,vm.user.id)).then((response) => {
+                            vm.user = response.body
                             if (vm.user.residential_address == null){ vm.user.residential_address = {}; }
-                            if ( vm.user.wildlifecompliance_organisations && vm.user.wildlifecompliance_organisations.length > 0 ) { vm.managesOrg = 'Yes' }
+                            if (vm.user.wildlifecompliance_organisations && vm.user.wildlifecompliance_organisations.length > 0){
+                              vm.managesOrg = 'Yes'
+                            }
+                            swal(
+                                'Unlink',
+                                'The user has been successfully unlinked from '+org_name+'.',
+                                'success'
+                            )
                         },(error) => {
                         })
-                        swal(
-                            'Unlink',
-                            'You have been successfully unlinked from '+org_name+'.',
-                            'success'
-                        )
                     }, (error) => {
                         swal(
                             'Unlink',
-                            'There was an error unlinking you from '+org_name+'.',
+                            'There was an error unlinking the user from '+org_name+'.',
                             'error'
                         )
                     });

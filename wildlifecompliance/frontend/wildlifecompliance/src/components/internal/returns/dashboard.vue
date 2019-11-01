@@ -4,7 +4,7 @@
 </div>
 </template>
 <script>
-import ReturnDashTable from '@common-utils/returns_dashboard.vue'
+import ReturnDashTable from '@common-components/returns_dashboard.vue'
 import {
   api_endpoints,
   helpers
@@ -15,9 +15,9 @@ export default {
     data() {
         let vm = this;
         return {
-            returns_url: api_endpoints.returns,
+            returns_url: helpers.add_endpoint_join(api_endpoints.returns_paginated,'user_datatable_list/?format=datatables'),
         }
-    
+
     },
     watch: {},
     components: {

@@ -1,0 +1,15 @@
+{%  extends 'wildlifecompliance/emails/base_email.html' %}
+
+{%  block content %}
+	Your Return has been accepted.<br><br>
+
+	Submitter: {{ Return.submitter.get_full_name }}<br>
+	Lodgement date: {{ Return.lodgement_date }}
+
+    <p>
+    If you are currently logged into the Wildlife Licensing System, access this Return using the following link:
+    </p>
+    <p><a href="{{url}}">Access Return</a></p>
+
+
+{%  endblock %}

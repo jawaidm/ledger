@@ -6,25 +6,16 @@
             <template v-if="help_text">
                 <HelpText :help_text="help_text" />
             </template>
-            <template v-if="help_text_assessor && assessorMode">
-                <HelpText  :help_text="help_text_assessor" assessorMode={assessorMode} isForAssessor={true} />
-            </template> 
 
             <template v-if="help_text_url">
                 <HelpText :help_text_url="help_text_url" />
             </template>
-            <template v-if="help_text_assessor_url && assessorMode">
-                <HelpTextUrl  :help_text_url="help_text_assessor_url" assessorMode={assessorMode} isForAssessor={true} />
-            </template> 
 
-
-            <template v-if="assessorMode && !assessor_readonly && wc_version != 1.0">
-                <template v-if="!showingComment">
-                    <a v-if="comment_value != null && comment_value != undefined && comment_value != ''" href="" @click.prevent="toggleComment"><i style="color:red" class="fa fa-comment-o">&nbsp;</i></a>
-                    <a v-else href="" @click.prevent="toggleComment"><i class="fa fa-comment-o">&nbsp;</i></a>
-                </template>
-                <a href="" v-else  @click.prevent="toggleComment"><i class="fa fa-ban">&nbsp;</i></a>
-            </template>
+            <CommentBlock 
+                :label="label"
+                :name="name"
+                :field_data="field_data"
+                />
      
             <template v-if="readonly">
                 <select v-if="!isMultiple" disabled ref="selectB" :id="selectid" :name="name" class="form-control" :data-conditions="cons" style="width:100%">
@@ -54,10 +45,6 @@
             </template>
         </div>
 
-        
-        <Comment :question="label" :readonly="assessor_readonly" :name="name+'-comment-field'" v-show="showingComment && assessorMode" :value="comment_value"/> 
-
-
     </div>
 </template>
 
@@ -65,9 +52,10 @@
 var select2 = require('select2');
 require("select2/dist/css/select2.min.css");
 require("select2-bootstrap-theme/dist/select2-bootstrap.min.css");
-import Comment from './comment.vue'
-import HelpText from './help_text.vue'
-import HelpTextUrl from './help_text_url.vue'
+import CommentBlock from './comment_block.vue';
+import HelpText from './help_text.vue';
+import HelpTextUrl from './help_text_url.vue';
+
 export default {
     props:{
         'name':String,
@@ -75,12 +63,8 @@ export default {
         'id': String,
         'isRequired': String,
         'help_text':String,
-        'help_text_assessor':String,
         'help_text_url':String,
-        'help_text_assessor_url':String,
-        "value":[String,Array],
-        "comment_value": String,
-        "assessor_readonly": Boolean,
+        "field_data": Object,
         "options":Array,
         "conditions":Object,
         "handleChange":null,
@@ -89,12 +73,7 @@ export default {
                 return false;
             }
         },
-        "assessorMode":{
-            default:function () {
-                return false;
-            }
-        },
-        'readonly': Boolean
+        'readonly': Boolean,
     },
     data:function () {
         let vm =this;
@@ -102,25 +81,18 @@ export default {
             selected: (this.isMultiple) ? [] : "",
             selectid: "select"+vm._uid,
             multipleSelected: [],
-            showingComment: false,
-           
         }
     },
     computed:{
-        cons:function () {
+        cons: function () {
             return JSON.stringify(this.conditions);
         },
-        wc_version: function (){
-            return this.$root.wc_version;
-        },
+        value: function() {
+            return this.field_data.value;
+        }
     },
-    components: { Comment, HelpText, HelpTextUrl,},
+    components: { CommentBlock, HelpText, HelpTextUrl, },
     methods:{
-        toggleComment(){
-            this.showingComment = ! this.showingComment;
-        },
-       
-
         multipleSelection: function(val){
             if (Array.isArray(this.value)){
                 if (this.value.find(v => v == val)){
@@ -144,7 +116,7 @@ export default {
                        vm.handleChange(selected[0])
                        e.preventDefault();
                         if( vm.isMultiple){
-                            vm.multipleSelected = selected.val();
+                            vm.field_data.value = vm.multipleSelected = selected.val();
                         }
                    }).
                    on("select2:unselect",function (e) {
@@ -152,7 +124,7 @@ export default {
                         vm.handleChange(selected[0])
                         e.preventDefault();
                         if( vm.isMultiple){
-                            vm.multipleSelected = selected.val();
+                            vm.field_data.value = vm.multipleSelected = selected.val();
                         }
                    });
                    if (vm.value) {
@@ -169,7 +141,7 @@ export default {
 
 <style lang="css">
 .select2-container {
-  width: 100% !important;
+    width: inherit !important;
 }
 
 input {

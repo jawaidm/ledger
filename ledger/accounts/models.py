@@ -22,7 +22,7 @@ from social_django.models import UserSocialAuth
 from datetime import datetime, date
 
 from ledger.accounts.signals import name_changed, post_clean
-from ledger.accounts.utils import get_department_user_compact, in_dbca_domain
+from ledger.accounts.utils import get_department_user_compact, in_dbca_domain, get_app_label
 from ledger.address.models import UserAddress, Country
 
 
@@ -45,8 +45,8 @@ class EmailUserManager(BaseUserManager):
             raise ValueError('Email must be set')
         email = self.normalize_email(email).lower()
         if (EmailUser.objects.filter(email__iexact=email) or
-            Profile.objects.filter(email__iexact=email) or
-            EmailIdentity.objects.filter(email__iexact=email)):
+                Profile.objects.filter(email__iexact=email) or
+                EmailIdentity.objects.filter(email__iexact=email)):
             raise ValueError('This email is already in use')
         user = self.model(
             email=email, is_staff=is_staff, is_superuser=is_superuser)
@@ -94,7 +94,7 @@ class DocumentListener(object):
         # Pass false so FileField doesn't save the model.
         try:
             instance.file.delete(False)
-        except:
+        except NotImplementedError:
             #  if deleting file is failed, ignore.
             pass
 
@@ -114,8 +114,8 @@ class DocumentListener(object):
         if original_instance and original_instance.file and instance.file != original_instance.file:
             # file changed, delete the original file
             try:
-                original_file.delete(False);
-            except:
+                original_instance.file.delete(False)
+            except NotImplementedError:
                 # if deleting file is failed, ignore.
                 pass
             delattr(instance, "_original_instance")
@@ -228,9 +228,10 @@ class BaseAddress(models.Model):
 class Address(BaseAddress):
     user = models.ForeignKey('EmailUser', related_name='profile_addresses')
     oscar_address = models.ForeignKey(UserAddress, related_name='profile_addresses')
+
     class Meta:
         verbose_name_plural = 'addresses'
-        unique_together = ('user','hash')
+        unique_together = ('user', 'hash')
 
 
 @python_2_unicode_compatible
@@ -289,7 +290,13 @@ class EmailUser(AbstractBaseUser, PermissionsMixin):
     postal_address = models.ForeignKey(Address, null=True, blank=True, related_name='+')
     billing_address = models.ForeignKey(Address, null=True, blank=True, related_name='+')
 
-    identification = models.ForeignKey(Document, null=True, blank=True, on_delete=models.SET_NULL, related_name='identification_document')
+    identification = models.ForeignKey(
+        Document,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='identification_document'
+    )
 
     senior_card = models.ForeignKey(Document, null=True, blank=True, on_delete=models.SET_NULL, related_name='senior_card')
 
@@ -303,6 +310,9 @@ class EmailUser(AbstractBaseUser, PermissionsMixin):
 
     objects = EmailUserManager()
     USERNAME_FIELD = 'email'
+
+    dummy_email_suffix = ".s058@ledger.dpaw.wa.gov.au"
+    dummy_email_suffix_len = len(dummy_email_suffix)
 
     def __str__(self):
         if self.is_dummy_user:
@@ -331,7 +341,7 @@ class EmailUser(AbstractBaseUser, PermissionsMixin):
                 self.title = user_details.get('title')
                 self.fax_number = user_details.get('org_unit__location__fax')
                 self.is_staff = True
-                
+
         super(EmailUser, self).save(*args, **kwargs)
 
     def get_full_name(self):
@@ -354,8 +364,67 @@ class EmailUser(AbstractBaseUser, PermissionsMixin):
             self.identification = document
             self.save()
 
-    dummy_email_suffix = ".s058@ledger.dpaw.wa.gov.au"
-    dummy_email_suffix_len = len(dummy_email_suffix)
+    def has_wildlifelicenceactivity_perm(self, permission_codename, licence_activity_id):
+        app_label = get_app_label()
+        group_queryset = self.groups.filter(
+            permissions__codename__in=permission_codename if isinstance(
+                permission_codename, (list, models.query.QuerySet)
+            ) else [permission_codename],
+            activitypermissiongroup__licence_activities__id__in=licence_activity_id if isinstance(
+                licence_activity_id, (list, models.query.QuerySet)
+            ) else [licence_activity_id]
+        )
+        if app_label:
+            group_queryset = group_queryset.filter(permissions__content_type__app_label=app_label)
+        return group_queryset.count()
+
+    def get_wildlifelicence_permission_group(self, permission_codename, activity_id=None, first=True):
+        app_label = get_app_label()
+        qs = self.groups.filter(
+            permissions__codename=permission_codename
+        )
+        if activity_id is not None:
+            qs = qs.filter(
+                activitypermissiongroup__licence_activities__id__in=activity_id if isinstance(
+                    activity_id, (list, models.query.QuerySet)
+                ) else [activity_id]
+            )
+        if app_label:
+            qs = qs.filter(permissions__content_type__app_label=app_label)
+        return qs.first() if first else qs
+
+    def get_wildlifecompliance_proxy_details(self, request):
+        proxy_id = request.data.get(
+            "proxy_id",
+            request.GET.get("proxy_id")
+        )
+        organisation_id = request.data.get(
+            "organisation_id",
+            request.GET.get("organisation_id")
+        )
+        return self.validate_wildlifecompliance_proxy_details(proxy_id, organisation_id)
+
+    def validate_wildlifecompliance_proxy_details(self, proxy_id, organisation_id):
+        proxy_details = {
+            'proxy_id': proxy_id,
+            'organisation_id': organisation_id,
+        }
+
+        if not proxy_id and not organisation_id:
+            return proxy_details
+
+        # Only licensing officers can apply as a proxy
+        if not self.get_wildlifelicence_permission_group(
+            permission_codename='licensing_officer',
+            first=True
+        ):
+            proxy_details['proxy_id'] = None
+
+        user = EmailUser.objects.get(pk=proxy_id) if proxy_details['proxy_id'] else self
+        if organisation_id and not user.wildlifecompliance_organisations.filter(pk=organisation_id):
+            proxy_details['organisation_id'] = None
+
+        return proxy_details
 
     @property
     def is_dummy_user(self):
@@ -421,6 +490,15 @@ class EmailUser(AbstractBaseUser, PermissionsMixin):
         else:
             pass
 
+    @property
+    def get_related_items_identifier(self):
+        return self.email
+
+    @property
+    def get_related_items_descriptor(self):
+        #return '{0}, {1}'.format(self.status, self.caller)
+        return self.get_full_name()
+
 
 def query_emailuser_by_args(**kwargs):
     ORDER_COLUMN_CHOICES = [
@@ -467,7 +545,6 @@ def query_emailuser_by_args(**kwargs):
         'total': total,
         'draw': draw
     }
-
 
 
 @python_2_unicode_compatible
@@ -609,7 +686,8 @@ class EmailUserListener(object):
             # update profile's email if profile's email is original email
             Profile.objects.filter(email=original_instance.email, user=instance).update(email=instance.email)
 
-        if original_instance and any([original_instance.first_name != instance.first_name, original_instance.last_name != instance.last_name]):
+        if original_instance and any([original_instance.first_name != instance.first_name,
+                                      original_instance.last_name != instance.last_name]):
             # user changed first name or last name, send a named_changed signal.
             name_changed.send(sender=instance.__class__, user=instance)
 
@@ -631,12 +709,10 @@ class RevisionedMixin(models.Model):
 
     @property
     def created_date(self):
-        #return revisions.get_for_object(self).last().revision.date_created
         return Version.objects.get_for_object(self).last().revision.date_created
 
     @property
     def modified_date(self):
-        #return revisions.get_for_object(self).first().revision.date_created
         return Version.objects.get_for_object(self).first().revision.date_created
 
     class Meta:
@@ -649,7 +725,13 @@ class Profile(RevisionedMixin):
     name = models.CharField('Display Name', max_length=100, help_text='e.g Personal, Work, University, etc')
     email = models.EmailField('Email')
     postal_address = models.ForeignKey(Address, verbose_name='Postal Address', on_delete=models.PROTECT, related_name='profiles')
-    institution = models.CharField('Institution', max_length=200, blank=True, default='', help_text='e.g. Company Name, Tertiary Institution, Government Department, etc')
+    institution = models.CharField(
+        'Institution',
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='e.g. Company Name, Tertiary Institution, Government Department, etc'
+    )
 
     @property
     def is_auth_identity(self):
@@ -675,6 +757,7 @@ class Profile(RevisionedMixin):
         else:
             return '{}'.format(self.email)
 
+
 @python_2_unicode_compatible
 class Organisation(models.Model):
     """This model represents the details of a company or other organisation.
@@ -684,8 +767,20 @@ class Organisation(models.Model):
     abn = models.CharField(max_length=50, null=True, blank=True, verbose_name='ABN')
     # TODO: business logic related to identification file upload/changes.
     identification = models.FileField(upload_to='%Y/%m/%d', null=True, blank=True)
-    postal_address = models.ForeignKey('OrganisationAddress', related_name='org_postal_address', blank=True, null=True, on_delete=models.SET_NULL)
-    billing_address = models.ForeignKey('OrganisationAddress', related_name='org_billing_address', blank=True, null=True, on_delete=models.SET_NULL)
+    postal_address = models.ForeignKey(
+        'OrganisationAddress',
+        related_name='org_postal_address',
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL
+    )
+    billing_address = models.ForeignKey(
+        'OrganisationAddress',
+        related_name='org_billing_address',
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL
+    )
     trading_name = models.CharField(max_length=256, null=True, blank=True)
 
     def upload_identification(self, request):
@@ -696,11 +791,14 @@ class Organisation(models.Model):
     def __str__(self):
         return self.name
 
+
 class OrganisationAddress(BaseAddress):
-    organisation = models.ForeignKey(Organisation, null=True,blank=True, related_name='adresses')
+    organisation = models.ForeignKey(Organisation, null=True, blank=True, related_name='adresses')
+
     class Meta:
         verbose_name_plural = 'organisation addresses'
-        unique_together = ('organisation','hash')
+        unique_together = ('organisation', 'hash')
+
 
 class ProfileListener(object):
     """
@@ -760,14 +858,14 @@ class ProfileListener(object):
                 # Check if the user has the same profile address
                 # Check if there is a user address
                 oscar_add = UserAddress.objects.get(
-                    line1 = address.line1,
-                    line2 = address.line2,
-                    line3 = address.line3,
-                    line4 = address.locality,
-                    state = address.state,
-                    postcode = address.postcode,
-                    country = Country.objects.get(iso_3166_1_a2=address.country),
-                    user = instance.user
+                    line1=address.line1,
+                    line2=address.line2,
+                    line3=address.line3,
+                    line4=address.locality,
+                    state=address.state,
+                    postcode=address.postcode,
+                    country=Country.objects.get(iso_3166_1_a2=address.country),
+                    user=instance.user
                 )
                 if not address.oscar_address:
                     address.oscar_address = oscar_add
@@ -777,14 +875,14 @@ class ProfileListener(object):
                     address.save()
             except UserAddress.DoesNotExist:
                 oscar_address = UserAddress.objects.create(
-                    line1 = address.line1,
-                    line2 = address.line2,
-                    line3 = address.line3,
-                    line4 = address.locality,
-                    state = address.state,
-                    postcode = address.postcode,
-                    country = Country.objects.get(iso_3166_1_a2=address.country),
-                    user = instance.user
+                    line1=address.line1,
+                    line2=address.line2,
+                    line3=address.line3,
+                    line4=address.locality,
+                    state=address.state,
+                    postcode=address.postcode,
+                    country=Country.objects.get(iso_3166_1_a2=address.country),
+                    user=instance.user
                 )
                 address.oscar_address = oscar_address
                 address.save()
@@ -800,6 +898,7 @@ class ProfileListener(object):
                 u.oscar_address.delete()
                 u.delete()'''
 
+
 class EmailIdentityListener(object):
     """
     Event listener for EmailIdentity
@@ -810,7 +909,9 @@ class EmailIdentityListener(object):
         if instance.email:
             if EmailIdentity.objects.filter(email=instance.email).exclude(user=instance.user).exists():
                 # Email already used by other user in email identity.
-                raise ValidationError("This email address is already associated with an existing account or profile; if this email address belongs to you, please contact the system administrator to request for the email address to be added to your account.")
+                raise ValidationError("This email address is already associated with an existing account or profile;\
+                  if this email address belongs to you, please contact the system administrator to request for the email address\
+                  to be added to your account.")
 
     @staticmethod
     @receiver(post_clean, sender=EmailUser)
@@ -818,7 +919,10 @@ class EmailIdentityListener(object):
         if instance.email:
             if EmailIdentity.objects.filter(email=instance.email).exclude(user=instance).exists():
                 # Email already used by other user in email identity.
-                raise ValidationError("This email address is already associated with an existing account or profile; if this email address belongs to you, please contact the system administrator to request for the email address to be added to your account.")
+                raise ValidationError("This email address is already associated with an existing account or profile;\
+                  if this email address belongs to you, please contact the system administrator to request for the email address\
+                  to be added to your account.")
+
 
 class AddressListener(object):
     """
@@ -828,21 +932,21 @@ class AddressListener(object):
     @receiver(pre_save, sender=Address)
     def _pre_save(sender, instance, **kwargs):
         check_address = UserAddress(
-            line1 = instance.line1,
-            line2 = instance.line2,
-            line3 = instance.line3,
-            line4 = instance.locality,
-            state = instance.state,
-            postcode = instance.postcode,
-            country = Country.objects.get(iso_3166_1_a2=instance.country),
-            user = instance.user
+            line1=instance.line1,
+            line2=instance.line2,
+            line3=instance.line3,
+            line4=instance.locality,
+            state=instance.state,
+            postcode=instance.postcode,
+            country=Country.objects.get(iso_3166_1_a2=instance.country),
+            user=instance.user
         )
         if instance.pk:
             original_instance = Address.objects.get(pk=instance.pk)
             setattr(instance, "_original_instance", original_instance)
             if original_instance.oscar_address is None:
                 try:
-                    check_address = UserAddress.objects.get(hash=check_address.generate_hash(),user=check_address.user)
+                    check_address = UserAddress.objects.get(hash=check_address.generate_hash(), user=check_address.user)
                 except UserAddress.DoesNotExist:
                     check_address.save()
                 instance.oscar_address = check_address
@@ -850,7 +954,7 @@ class AddressListener(object):
             delattr(instance, "_original_instance")
         else:
             try:
-                check_address = UserAddress.objects.get(hash=check_address.generate_hash(),user=check_address.user)
+                check_address = UserAddress.objects.get(hash=check_address.generate_hash(), user=check_address.user)
             except UserAddress.DoesNotExist:
                 check_address.save()
             instance.oscar_address = check_address
@@ -877,19 +981,20 @@ class AddressListener(object):
                 else:
                     raise
 
+
 @python_2_unicode_compatible
 class EmailUserReport(models.Model):
     hash = models.TextField(primary_key=True)
     occurence = models.IntegerField()
     first_name = models.CharField(max_length=128, blank=False, verbose_name='Given name(s)')
     last_name = models.CharField(max_length=128, blank=False)
-    dob = models.DateField(auto_now=False, auto_now_add=False, null=True, blank=False,verbose_name="date of birth", help_text='')
+    dob = models.DateField(auto_now=False, auto_now_add=False, null=True, blank=False, verbose_name="date of birth", help_text='')
 
     def __str__(self):
-        return 'Given Name(s): {}, Last Name: {}, DOB: {}, Occurence: {}'.format(self.first_name,self.last_name,self.dob,self.occurence)
+        return 'Given Name(s): {}, Last Name: {}, DOB: {}, Occurence: {}'.format(
+            self.first_name, self.last_name, self.dob, self.occurence
+        )
 
     class Meta:
         managed = False
         db_table = 'accounts_emailuser_report_v'
-
-

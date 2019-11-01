@@ -1,21 +1,67 @@
 <template>
 <div class="container" id="internalSearch">
+    <UserDashTable level="internal" :url="users_url" />
+    <OrganisationDashTable />
     <div class="row">
         <div class="col-sm-12">
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h3 class="panel-title">Search People 
-                        <a :href="'#'+cBody" data-toggle="collapse"  data-parent="#peopleInfo" expanded="true" :aria-controls="cBody">
+                    <h3 class="panel-title">Keywords
+                        <a :href="'#'+kBody" data-toggle="collapse"  data-parent="#keywordInfo" expanded="true" :aria-controls="kBody">
                             <span class="glyphicon glyphicon-chevron-up pull-right "></span>
                         </a>
                     </h3>
                 </div>
-                <div class="panel-body collapse in" :id="cBody">
+                <div class="panel-body collapse in" :id="kBody">
                     <div class="row">
-                        <div class="col-md-4">
-                            <label class="control-label">
-                                <a href="/internal/users">Click here to search for people</a>
-                            </label>
+                      <div>
+                        <div class="form-group">
+                          <label for="" class="control-label col-lg-12">Filter</label>
+                          <div class="form-check form-check-inline col-md-3">
+                              <input  class="form-check-input" ref="searchApplication" id="searchApplication" name="searchApplication" type="checkbox" v-model="searchApplication" />
+                              <label class="form-check-label" for="searchApplication">Application</label>
+
+                          </div>
+                          <div class="form-check form-check-inline col-md-3">
+                              <input  class="form-check-input" ref="searchLicence" id="searchLicence" name="searchLicence" type="checkbox" v-model="searchLicence" />
+                              <label class="form-check-label" for="searchLicence">Licence</label>
+                          </div>
+                          <div class="form-check form-check-inline col-md-3">
+                              <input  class="form-check-input" ref="searchReturn" id="searchReturn" name="searchReturn" type="checkbox" v-model="searchReturn" />
+                              <label class="form-check-label" for="searchReturn">Return with requirements</label>
+                          </div>
+                          <label for="" class="control-label col-lg-12">Keyword</label>
+                            <div class="col-md-8">
+                              <input type="search"  class="form-control input-sm" name="details" placeholder="" v-model="keyWord"></input>
+                            </div>
+                            <div class="col-md-1">
+                            </div>
+                            <div class="col-md-3">
+                              <input type="button" @click.prevent="addKeyword" class="btn btn-primary" value="Add"/>
+                            </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-lg-12">
+                          <ul class="list-inline" style="display: inline; width: auto;">
+                              <li class="list-inline-item" v-for="(item,i) in searchKeywords">
+                                <button @click.prevent="" class="btn btn-light" style="margin-top:5px; margin-bottom: 5px">{{item}}</button><a href="" @click.prevent="removeKeyword(i)"><span class="glyphicon glyphicon-remove "></span></a>
+                              </li>
+                          </ul>
+                      </div>
+                    </div>
+                    <div class="row">
+                      <div class="col-lg-12">
+                        <div>
+                          <input :disabled="!hasSearchKeywords" type="button" @click.prevent="searchKeyword" class="btn btn-primary" style="margin-bottom: 5px"value="Search"/>
+                          <input type="reset" @click.prevent="clearKeywordSearch" class="btn btn-primary" style="margin-bottom: 5px"value="Clear"/>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <datatable ref="keyword_search_datatable" :id="datatable_id" :dtOptions="keyword_search_options"  :dtHeaders="keyword_search_headers"/>
                         </div>
                     </div>
                 </div>
@@ -26,79 +72,36 @@
         <div class="col-sm-12">
             <div class="panel panel-default">
                 <div class="panel-heading">
-                    <h3 class="panel-title">Search Organisations
-                        <a :href="'#'+oBody" data-toggle="collapse"  data-parent="#organisationInfo" expanded="false" :aria-controls="oBody">
-                            <span class="glyphicon glyphicon-chevron-down pull-right "></span>
+                    <h3 class="panel-title">Reference Number
+                        <a :href="'#'+rBody" data-toggle="collapse"  data-parent="#referenceNumberInfo" expanded="true" :aria-controls="rBody">
+                            <span class="glyphicon glyphicon-chevron-up pull-right "></span>
                         </a>
                     </h3>
                 </div>
-                <div class="panel-body collapse" :id="oBody">
-                    <div class="row">
-                        <form name="searchOrganisationForm">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label class="control-label" for="Organisation">Search Organisation</label>
-                                    <select v-if="organisations == null" class="form-control" name="organisation" v-model="selected_organisation">
-                                        <option value="">Loading...</option>
-                                    </select>
-                                    <select v-else ref="searchOrg" class="form-control" name="organisation">
-                                        <option value="">Select Organisation</option>
-                                        <option v-for="o in organisations" :value="o.id">{{ o.name }}</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="col-md-12 text-center">
-                                <router-link :disabled="selected_organisation == ''" :to="{name:'internal-org-detail',params:{'org_id':parseInt(selected_organisation)}}" class="btn btn-primary">View Details</router-link>
-                            </div>
-                        </form>
+                <div class="panel-body collapse in" :id="rBody">
+                    <div class="row col-lg-12">
+                        <span>Search on the following items via Reference Number:</span>
+                        <ul>
+                            <li>Applications (e.g. A000001)</li>
+                            <li>Licences (e.g. L000001)</li>
+                            <li>Returns (e.g. R000001)</li>
+                            <li>Tag Purchases (e.g. T000001)</li>
+                            <li>Organisation Access Requests (e.g. OAR000001)</li>
+                            <li>Advices to CEO (e.g. AD000001)</li>
+                            <li>Endorsement Applications (e.g. E000001)</li>
+                            <li>Lawful Authority Applications (e.g. LAA000001)</li>
+                            <li>Lawful Authorities (e.g. LA000001)</li>
+                        </ul>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div v-if="wc_version != 1.0" class="row">
-        <div class="col-sm-12">
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Search Keywords 
-                        <a :href="'#'+kBody" data-toggle="collapse"  data-parent="#keywordInfo" expanded="false" :aria-controls="kBody">
-                            <span class="glyphicon glyphicon-chevron-down pull-right "></span>
-                        </a>
-                    </h3>
-                </div>
-                <div class="panel-body collapse" :id="kBody">
                     <div class="row">
-                        <form name="searchKeywordForm">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label class="control-label" for="Keyword">Search Keyword</label>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div v-if="wc_version != 1.0" class="row">
-        <div class="col-sm-12">
-            <div class="panel panel-default">
-                <div class="panel-heading">
-                    <h3 class="panel-title">Search Reference Number 
-                        <a :href="'#'+rBody" data-toggle="collapse"  data-parent="#referenceNumberInfo" expanded="false" :aria-controls="rBody">
-                            <span class="glyphicon glyphicon-chevron-down pull-right "></span>
-                        </a>
-                    </h3>
-                </div>
-                <div class="panel-body collapse" :id="rBody">
-                    <div class="row">
-                        <form name="searchReferenceNumberForm">
-                            <div class="col-md-4">
-                                <div class="form-group">
-                                    <label class="control-label" for="ReferenceNumber">Search Reference Number</label>
-                                </div>
-                            </div>
-                        </form>
+                       <label for="" class="control-label col-lg-12">Reference Number</label>
+                          <div class="col-md-8">
+                              <input type="search"  class="form-control input-sm" name="referenceWord" placeholder="" v-model="referenceWord"></input>
+                          </div>
+                          <div >
+                            <input type="button" @click.prevent="search_reference" class="btn btn-primary" style="margin-bottom: 5px" value="Search"/>
+                        </div>
+                        <alert :show.sync="showError" type="danger"><strong>{{errorString}}</strong></alert>
                     </div>
                 </div>
             </div>
@@ -109,6 +112,10 @@
 <script>
 import $ from 'jquery'
 import datatable from '@/utils/vue/datatable.vue'
+import alert from '@/utils/vue/alert.vue'
+import UserDashTable from '@common-components/users_dashboard.vue'
+import OrganisationDashTable from '@internal-components/organisations/organisations_dashboard.vue'
+import '@/scss/dashboards/search.scss';
 import {
   api_endpoints,
   helpers
@@ -116,22 +123,86 @@ import {
 from '@/utils/hooks'
 import utils from './utils'
 export default {
-  name: 'ExternalDashboard',
-  data() {
-    let vm = this;
-    return {
-      rBody: 'rBody' + vm._uid,
-      oBody: 'oBody' + vm._uid,
-      cBody: 'cBody' + vm._uid,
-      kBody: 'kBody' + vm._uid,
-      loading: [],
-      selected_organisation:'',
-      organisations: null,
-    }
-  },
-    watch: {},
+    name: 'SearchDashboard',
+    data() {
+        let vm = this;
+        return {
+            users_url: helpers.add_endpoint_join(api_endpoints.users_paginated,'datatable_list/?format=datatables'),
+            rBody: 'rBody' + vm._uid,
+            oBody: 'oBody' + vm._uid,
+            cBody: 'cBody' + vm._uid,
+            kBody: 'kBody' + vm._uid,
+            loading: [],
+            searchKeywords: [],
+            hasSearchKeywords: false,
+            selected_organisation:'',
+            organisations: null,
+            searchApplication: true,
+            searchLicence: false,
+            searchReturn: false,
+            referenceWord: '',
+            keyWord: null,
+            results: [],
+            errors: false,
+            errorString: '',
+            datatable_id: 'keyword-search-datatable-'+vm._uid,
+            keyword_search_headers:["Number","Type","Applicant","Text Found","Action"],
+            keyword_search_options:{
+                language: {
+                    processing: "<i class='fa fa-4x fa-spinner fa-spin'></i>"
+                },
+                responsive: true,
+                data: vm.results,
+                columns: [
+                    {data: "number"},
+                    {data:"record_type"},
+                    {data: "applicant"},
+                    {
+                        data: "text",
+                        className: "normal-white-space",
+                        mRender: function (data,type,full) {
+                            if(data.value) {
+                                return data.value;
+                            }
+                            else {
+                                return data;
+                            }
+                        }
+                    },
+                    {data: "record_id",
+                        mRender:function (data,type,full) {
+                            let links = '';
+                            if(full.type == 'Application') {
+                              links +=  `<a href='/internal/application/${full.id}'>View</a><br/>`;
+                            }
+                            if(full.type == 'Licence') {
+                              links +=  `<a href="${full.licence_document}" target="_blank">View</a>`;
+                            }
+                            if(full.type == 'Return') {
+                              links +=  `<a href='/internal/return/${full.id}'>View</a><br/>`;
+                            }
+                            return links;
+                        }
+                    }
+                ],
+                processing: true
+            }
+        }
+    },
+    watch: {
+        searchKeywords: function() {
+            if (this.searchKeywords.length > 0){
+                this.hasSearchKeywords = true;
+            } else {
+                this.hasSearchKeywords = false;
+            };
+        }
+    },
     components: {
+        alert,
         datatable,
+        UserDashTable,
+        OrganisationDashTable
     },
     beforeRouteEnter:function(to,from,next){
         let initialisers = [
@@ -139,7 +210,7 @@ export default {
         ]
         Promise.all(initialisers).then(data => {
             next(vm => {
-                vm.organisations = data[0];
+                vm.organisations = data[0].results;
             });
         });
     },
@@ -147,8 +218,8 @@ export default {
         isLoading: function () {
             return this.loading.length == 0;
         },
-        wc_version: function (){
-            return this.$root.wc_version;
+        showError: function() {
+            return this.errors;
         }
     },
     methods: {
@@ -168,10 +239,78 @@ export default {
                 var selected = $(e.currentTarget);
                 vm.selected_organisation = selected.val();
             });
-        }
+        },
+        search_reference: function() {
+          let vm = this;
+          if(vm.referenceWord)
+          {
+            vm.$http.post('/api/search_reference.json',{
+              reference_number: vm.referenceWord,
+
+            }).then(res => {
+              console.log(res)
+              vm.errors = false;
+              vm.errorString = '';
+              window.location.href = res.body.url_string;
+              },
+            error => {
+              console.log(error);
+              vm.errors = true;
+              vm.errorString = helpers.apiVueResourceError(error);
+            });
+          }
+        },
+        addKeyword: function() {
+          let vm = this;
+          if(vm.keyWord != null)
+          {
+            vm.searchKeywords.push(vm.keyWord);
+          }
+        },
+        removeKeyword: function(index) {
+          let vm = this;
+          if(index >-1)
+          {
+            vm.searchKeywords.splice(index,1);
+          }
+        },
+        clearKeywordSearch: function() {
+          let vm = this;
+          if(vm.keyWord != null)
+          {
+            vm.searchKeywords = [];
+          }
+          vm.keyWord = null;
+          vm.results = [];
+          vm.$refs.keyword_search_datatable.vmDataTable.clear()
+          vm.$refs.keyword_search_datatable.vmDataTable.draw();
+        },
+        searchKeyword: function() {
+          let vm = this;
+          if(this.searchKeywords.length > 0)
+          {
+            vm.$http.post('/api/search_keywords.json',{
+              searchKeywords: vm.searchKeywords,
+              searchApplication: vm.searchApplication,
+              searchLicence: vm.searchLicence,
+              searchReturn: vm.searchReturn,
+              is_internal: true,
+            }).then(res => {
+              vm.results = res.body;
+              vm.$refs.keyword_search_datatable.vmDataTable.clear()
+              vm.$refs.keyword_search_datatable.vmDataTable.rows.add(vm.results);
+              vm.$refs.keyword_search_datatable.vmDataTable.draw();
+            },
+            err => {
+              console.log(err);
+            });
+          }
+        },
     },
     mounted: function () {
         let vm = this;
+        vm.keyword_search_options.data = vm.results;
+        vm.$refs.keyword_search_datatable.vmDataTable.draw();
         $( 'a[data-toggle="collapse"]' ).on( 'click', function () {
             var chev = $( this ).children()[ 0 ];
             window.setTimeout( function () {
