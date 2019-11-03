@@ -12,6 +12,8 @@ import CallEmail from '../call_email/call_email.vue'
 import ReturnDashTable from '../returns/dashboard.vue'
 import Returns from '../returns/return.vue'
 import InspectionDashTable from '../inspection/inspection_dashboard.vue'
+import LegalCaseDashTable from '../legal_case/legal_case_dashboard.vue'
+import LegalCase from '../legal_case/legal_case.vue'
 import Inspection from '../inspection/inspection.vue'
 import SanctionOutcomeDashTable from '../sanction_outcome/sanction_outcome_dashboard.vue'
 import SanctionOutcome from '../sanction_outcome/sanction_outcome.vue'
@@ -59,6 +61,28 @@ export default
                 },
             ]
         },
+        {
+            path: 'legal_case',
+            component: {
+                render(c)
+                {
+                    return c('router-view')
+                }
+            },
+            children: [
+                {
+                    path: '/',
+                    component: LegalCaseDashTable,
+                    name:"internal-legal-case-dash"
+                },
+                {
+                    path: ':legal_case_id',
+                    component: LegalCase,
+                    name:"view-legal-case"
+                },
+            ]
+        },
+
         {
             path: 'offence',
             component: {

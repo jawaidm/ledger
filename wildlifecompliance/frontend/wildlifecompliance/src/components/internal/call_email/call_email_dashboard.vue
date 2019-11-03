@@ -259,7 +259,11 @@
             //     return this.current_user.base_compliance_permissions.includes('officer');
             // },
             createCallEmailUrl: async function () {
-                const newCallId = await this.saveCallEmail({ route: false, crud: 'create'});
+                let newCallId = null
+                let savedCallEmail = await this.saveCallEmail({ route: false, crud: 'create'});
+                if (savedCallEmail) {
+                    newCallId = savedCallEmail.body.id;
+                }
                 console.log("newCallId");
                 console.log(newCallId);
 

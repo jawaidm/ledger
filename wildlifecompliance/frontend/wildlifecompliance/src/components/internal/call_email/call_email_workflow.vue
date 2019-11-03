@@ -47,36 +47,6 @@
                           </div>
                         </div>
 
-                        <div v-if="workflow_type === 'allocate_for_inspection'" class="form-group">
-                          <div class="row">
-                            <div class="col-sm-3">
-                              <label>Inspection Type</label>
-                            </div>
-                            <div class="col-sm-9">
-                              <select class="form-control" v-model="inspection_type_id">
-                                <option  v-for="option in inspectionTypes" :value="option.id" v-bind:key="option.id">
-                                  {{ option.description }}
-                                </option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div v-if="workflow_type === 'allocate_for_case'" class="form-group">
-                          <div class="row">
-                            <div class="col-sm-3">
-                              <label>Priority</label>
-                            </div>
-                            <div class="col-sm-9">
-                              <select class="form-control" v-model="case_priority_id">
-                                <option  v-for="option in casePriorities" :value="option.id" v-bind:key="option.id">
-                                  {{ option.description }} 
-                                </option>
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-
                         <div v-if="workflow_type === 'close'" class="form-group">
                           <div class="row">
                             <div class="col-sm-3">
@@ -114,38 +84,6 @@
                                 </div>
                             </div>
                         </div>
-
-                  <!--form class="form-horizontal" name="forwardForm">
-                    <div class="form-group">
-                      <div class="row">
-                          <div class="col-sm-3">
-                              <label class="control-label pull-left"  for="Name">Attachments</label>
-                          </div>
-                          <div class="col-sm-8">
-                              <template v-for="(f,i) in files">
-                                  <div :class="'row top-buffer file-row-'+i">
-                                      <div class="col-sm-4">
-                                          <span v-if="f.file == null" class="btn btn-info btn-file pull-left">
-                                              Attach File <input type="file" :id="'workflow-file-upload-'+i" :name="'workflow-file-upload-'+i" :class="'workflow-file-upload-'+i" @change="uploadFile('workflow-file-upload-'+i,f)"/>
-                                          </span>
-                                          <span v-else class="btn btn-info btn-file pull-left">
-                                              Update File <input type="file" :id="'workflow-file-upload-'+i" :name="'workflow-file-upload-'+i" :class="'workflow-file-upload-'+i" @change="uploadFile('workflow-file-upload-'+i,f)"/>
-                                          </span>
-                                      </div>
-                                      <div class="col-sm-4">
-                                          <span>{{f.name}}</span>
-                                      </div>
-                                      <div class="col-sm-4">
-                                          <button @click="removeFile(i)" class="btn btn-danger">Remove</button>
-                                      </div>
-                                  </div>
-                              </template>
-                              <a href="" @click.prevent="attachAnother"><i class="fa fa-lg fa-plus top-buffer-2x"></i></a>
-                              <commslogfile class="form-control" ref="comms_log_file" name="comms-log-file" :isRepeatable="true" :documentActionUrl="documentActionUrl" />
-                          </div>
-                        </div>
-                    </div>
-                  </form-->
 
                 </div>
               
@@ -188,12 +126,9 @@ export default {
             regions: [],
             regionDistricts: [],
             availableDistricts: [],
-            casePriorities: [],
-            inspectionTypes: [],
             externalOrganisations: [],
             referrers: [],
             referrersSelected: [],
-            //group_permission: '',
             workflowDetails: '',
             errorResponse: "",
             region_id: null,
@@ -433,7 +368,7 @@ export default {
           this.region_id ? payload.append('region_id', this.region_id) : null;
           this.allocated_group_id ? payload.append('allocated_group_id', this.allocated_group_id) : null;
 
-          let callEmailRes = await this.saveCallEmail({ route: false, crud: 'save', 'internal': true });
+          let callEmailRes = await this.saveCallEmail({ crud: 'save', 'internal': true });
           console.log(callEmailRes);
           if (callEmailRes.ok) {
               try {
@@ -503,32 +438,6 @@ export default {
         Object.assign(this.regionDistricts, returned_region_districts);
 
         await this.updateAllocatedGroup();
-
-        // case_priorities
-        let returned_case_priorities = await cache_helper.getSetCacheList(
-            'CasePriorities', 
-            api_endpoints.case_priorities
-            );
-        Object.assign(this.casePriorities, returned_case_priorities);
-        // blank entry allows user to clear selection
-        this.casePriorities.splice(0, 0, 
-            {
-              id: "", 
-              description: "",
-            });
-
-        // inspection_types
-        let returned_inspection_types = await cache_helper.getSetCacheList(
-            'InspectionTypes', 
-            api_endpoints.inspection_types
-            );
-        Object.assign(this.inspectionTypes, returned_inspection_types);
-        // blank entry allows user to clear selection
-        this.inspectionTypes.splice(0, 0, 
-            {
-              id: "", 
-              description: "",
-            });
 
         // referrers
         let returned_referrers = await cache_helper.getSetCacheList('CallEmail_Referrers', '/api/referrers.json');

@@ -51,26 +51,12 @@
                             Action 
                         </div>
                         <div class="panel-body panel-collapse">
-                            <div v-if="visibilitySaveButton" class="row action-button">
-                                <div class="col-sm-12">
-                                    <a @click="save()" class="btn btn-primary btn-block">
-                                        Save
-                                    </a>
-                                </div>
-                            </div>
-                            <div v-else>
-                                Save
-                            </div>
-
                             <div v-if="visibilitySanctionOutcomeButton" class="row action-button">
                                 <div class="col-sm-12">
                                     <a @click="openSanctionOutcome()" class="btn btn-primary btn-block">
                                         Sanction Outcome
                                     </a>
                                 </div>
-                            </div>
-                            <div v-else>
-                                Sanction Outcome
                             </div>
 
                             <div v-if="visibilityCloseButton" class="row action-button">
@@ -79,9 +65,6 @@
                                         Close
                                     </a>
                                 </div>
-                            </div>
-                            <div v-else>
-                                Close
                             </div>
                         </div>
                     </div>
@@ -107,16 +90,16 @@
                                         </div>
                                         <div class="col-sm-6">
                                             <div v-if="offence">
-                                                <input type="text" class="form-control" name="identifier" placeholder="" v-model="offence.identifier" v-bind:key="offence.id">
+                                                <input type="text" :readonly="readonlyForm" class="form-control" name="identifier" v-model="offence.identifier">
                                             </div>
                                         </div>
                                     </div></div>
 
                                     <div class="col-sm-12 form-group"><div class="row">
                                         <label class="col-sm-3">Use occurrence from/to</label>
-                                        <input class="col-sm-1" id="occurrence_from_to_true" type="radio" v-model="offence.occurrence_from_to" v-bind:value="true">
+                                        <input class="col-sm-1" :disabled="readonlyForm" id="occurrence_from_to_true" type="radio" v-model="offence.occurrence_from_to" v-bind:value="true">
                                         <label class="col-sm-1 radio-button-label" for="occurrence_from_to_true">Yes</label>
-                                        <input class="col-sm-1" id="occurrence_from_to_false" type="radio" v-model="offence.occurrence_from_to" v-bind:value="false">
+                                        <input class="col-sm-1" :disabled="readonlyForm" id="occurrence_from_to_false" type="radio" v-model="offence.occurrence_from_to" v-bind:value="false">
                                         <label class="col-sm-1 radio-button-label" for="occurrence_from_to_false">No</label>
                                     </div></div>
 
@@ -124,7 +107,7 @@
                                         <label class="col-sm-3">{{ occurrenceDateLabel }}</label>
                                         <div class="col-sm-3">
                                             <div class="input-group date" ref="occurrenceDateFromPicker">
-                                                <input type="text" class="form-control" placeholder="DD/MM/YYYY" v-model="offence.occurrence_date_from" />
+                                                <input :readonly="readonlyForm" type="text" class="form-control" placeholder="DD/MM/YYYY" v-model="offence.occurrence_date_from" />
                                                 <span class="input-group-addon">
                                                     <span class="glyphicon glyphicon-calendar"></span>
                                                 </span>
@@ -133,7 +116,7 @@
                                         <div v-show="offence.occurrence_from_to">
                                             <div class="col-sm-3">
                                                 <div class="input-group date" ref="occurrenceDateToPicker">
-                                                    <input type="text" class="form-control" placeholder="DD/MM/YYYY" v-model="offence.occurrence_date_to" />
+                                                    <input :readonly="readonlyForm" type="text" class="form-control" placeholder="DD/MM/YYYY" v-model="offence.occurrence_date_to" />
                                                     <span class="input-group-addon">
                                                         <span class="glyphicon glyphicon-calendar"></span>
                                                     </span>
@@ -146,7 +129,7 @@
                                         <label class="col-sm-3">{{ occurrenceTimeLabel }}</label>
                                         <div class="col-sm-3">
                                             <div class="input-group date" ref="occurrenceTimeFromPicker">
-                                                <input type="text" class="form-control" placeholder="HH:MM" v-model="offence.occurrence_time_from" />
+                                                <input :readonly="readonlyForm" type="text" class="form-control" placeholder="HH:MM" v-model="offence.occurrence_time_from" />
                                                 <span class="input-group-addon">
                                                     <span class="glyphicon glyphicon-calendar"></span>
                                                 </span>
@@ -155,7 +138,7 @@
                                         <div v-show="offence.occurrence_from_to">
                                             <div class="col-sm-3">
                                                 <div class="input-group date" ref="occurrenceTimeToPicker">
-                                                    <input type="text" class="form-control" placeholder="HH:MM" v-model="offence.occurrence_time_to" />
+                                                    <input :readonly="readonlyForm" type="text" class="form-control" placeholder="HH:MM" v-model="offence.occurrence_time_to" />
                                                     <span class="input-group-addon">
                                                         <span class="glyphicon glyphicon-calendar"></span>
                                                     </span>
@@ -166,11 +149,13 @@
 
                                     <div class="col-sm-12 form-group"><div class="row">
                                         <label class="col-sm-3">Alleged Offence</label>
-                                        <div class="col-sm-6">
-                                            <input class="form-control" id="alleged-offence" />
-                                        </div>
-                                        <div class="col-sm-3">
-                                            <input type="button" class="btn btn-primary" value="Add" @click.prevent="addAllegedOffenceClicked()" />
+                                        <div v-show="!readonlyForm">
+                                            <div class="col-sm-6">
+                                                <input class="form-control" id="alleged-offence" />
+                                            </div>
+                                            <div class="col-sm-3">
+                                                <input type="button" class="btn btn-primary" value="Add" @click.prevent="addAllegedOffenceClicked()" />
+                                            </div>
                                         </div>
                                     </div></div>
 
@@ -183,35 +168,45 @@
                             </div>
                             <div :id="detailsTab" class="tab-pane face in">
                                 <FormSection :formCollapse="false" label="Details" Index="1">
-                                    <textarea class="form-control" placeholder="add details" v-model="offence.details" />
+                                    <textarea :readonly="readonlyForm" class="form-control" placeholder="add details" v-model="offence.details" />
                                 </FormSection>
                             </div>
                             <div :id="offenderTab" class="tab-pane face in">
                                 <FormSection :formCollapse="false" label="Offender(s)" Index="2">
-                                    <div class="col-sm-12 form-group"><div class="row">
-                                        <input class="col-sm-1" id="offender_individual" type="radio" v-model="offender_search_type" value="individual">
+                                    <!--div class="col-sm-12 form-group"><div class="row">
+                                        <input :disabled="readonlyForm" class="col-sm-1" id="offender_individual" type="radio" v-model="offender_search_type" value="individual">
                                         <label class="col-sm-1 radio-button-label" for="offender_individual">Individual</label>
-                                        <input class="col-sm-1" id="offender_organisation" type="radio" v-model="offender_search_type" value="organisation">
+                                        <input :disabled="readonlyForm" class="col-sm-1" id="offender_organisation" type="radio" v-model="offender_search_type" value="organisation">
                                         <label class="col-sm-1 radio-button-label" for="offender_organisation">Organisation</label>
-                                    </div></div>
+                                    </div></div-->
 
                                     <div class="col-sm-12 form-group"><div class="row">
                                         <label class="col-sm-2">Offender</label>
-                                        <div class="col-sm-6">
-                                            <PersonSearch ref="person_search" elementId="idSetInParent" classNames="col-sm-5 form-control" @person-selected="personSelected" :search_type="offender_search_type" />
-                                        </div>
-                                        <div class="col-sm-1">
-                                            <input type="button" class="btn btn-primary" value="Add" @click.prevent="addOffenderClicked()" />
-                                        </div>
-                                        <div class="col-sm-2">
-                                            <input type="button" class="btn btn-primary" value="Create New Person" @click.prevent="createNewPersonClicked()" />
+                                        <div v-show="!readonlyForm">
+                                            <div>
+                                                <SearchPersonOrganisation 
+                                                :excludeStaff="true" 
+                                                classNames="form-control" 
+                                                @entity-selected="personSelected" 
+                                                showCreateUpdate
+                                                ref="search_offender"
+                                                domIdHelper="offender"
+                                                v-bind:key="updateSearchPersonOrganisationBindId"/>
+                                                <!--PersonSearch ref="person_search" elementId="idSetInParent" classNames="col-sm-5 form-control" @person-selected="personSelected" :search_type="offender_search_type" /-->
+                                            </div>
+                                            <div>
+                                                <input type="button" class="btn btn-primary" value="Add to Offender List" @click.prevent="addOffenderClicked()" />
+                                            </div>
+                                            <!--div class="col-sm-2">
+                                                <input type="button" class="btn btn-primary" value="Create New Person" @click.prevent="createNewPersonClicked()" />
+                                            </div-->
                                         </div>
                                     </div></div>
 
-                                    <div class="col-sm-12 form-group"><div class="row">
-                                        <div class="col-sm-12">
+                                    <div class="form-group"><div class="row">
+                                        <!--div class="col-sm-12">
                                           <CreateNewPerson :displayComponent="displayCreateNewPerson" @new-person-created="newPersonCreated"/>
-                                        </div>
+                                        </div-->
 
                                         <div class="col-sm-12">
                                             <datatable ref="offender_table" id="offender-table" :dtOptions="dtOptionsOffender" :dtHeaders="dtHeadersOffender" />
@@ -222,7 +217,7 @@
                             </div>
                             <div :id="locationTab" class="tab-pane face in">
                                 <FormSection :formCollapse="false" label="Location" Index="3">
-                                    <MapLocation v-if="offence.location" v-bind:key="locationTab" ref="mapLocationComponent" :marker_longitude="offence.location.geometry.coordinates[0]" :marker_latitude="offence.location.geometry.coordinates[1]" @location-updated="locationUpdated"/>
+                                    <MapLocation v-if="offence.location" v-bind:key="locationTab" ref="mapLocationComponent" :readonly="readonlyForm" :marker_longitude="offence.location.geometry.coordinates[0]" :marker_latitude="offence.location.geometry.coordinates[1]" @location-updated="locationUpdated"/>
                                     <div :id="idLocationFieldsAddress" v-if="offence.location">
                                         <div class="col-sm-12 form-group"><div class="row">
                                             <label class="col-sm-4">Street</label>
@@ -258,7 +253,7 @@
                                 <FormSection :formCollapse="false" label="Related Items" Index="4">
                                     <div class="col-sm-12 form-group"><div class="row">
                                         <div class="col-sm-12">
-                                            <RelatedItems v-bind:key="relatedItemsBindId" :parent_update_related_items="setRelatedItems" />
+                                            <RelatedItems v-bind:key="relatedItemsBindId" :parent_update_related_items="setRelatedItems" :readonlyForm="readonlyForm" />
                                         </div>
                                     </div></div>
                                 </FormSection>
@@ -268,8 +263,24 @@
                 </div>
             </div>
         </div>
+
+        <div v-if="visibilitySaveButton" class="navbar navbar-fixed-bottom" style="background-color: #f5f5f5 ">
+            <div class="navbar-inner">
+                <div class="container">
+                    <p class="pull-right" style="margin-top:5px;">
+                        <input type="button" @click.prevent="saveExit" class="btn btn-primary" value="Save and Exit"/>
+                        <input type="button" @click.prevent="save" class="btn btn-primary" value="Save and Continue"/>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div v-if="workflow_type">
+            <OffenceWorkflow ref="add_workflow" :workflow_type="workflow_type" v-bind:key="workflowBindId" />
+        </div>
+
         <div v-if="sanctionOutcomeInitialised">
-            <SanctionOutcome ref="sanction_outcome" />
+            <SanctionOutcome ref="sanction_outcome" :parent_update_function="constructOffenceDedicatedPage" />
         </div>
     </div>
 </template>
@@ -284,14 +295,16 @@ import { mapState, mapGetters, mapActions, mapMutations } from "vuex";
 import CommsLogs from "@common-components/comms_logs.vue";
 import filefield from '@/components/common/compliance_file.vue';
 import OffenceWorkflow from './offence_workflow';
-import PersonSearch from "@common-components/search_person.vue";
-import CreateNewPerson from "@common-components/create_new_person.vue";
+import SearchPersonOrganisation from "@common-components/search_person_or_organisation.vue";
+//import CreateNewPerson from "@common-components/create_new_person.vue";
 import MapLocation from "../../common/map_location";
 import SanctionOutcome from '../sanction_outcome/sanction_outcome_modal';
 import 'bootstrap/dist/css/bootstrap.css';
 import "awesomplete/awesomplete.css";
 import RelatedItems from "@common-components/related_items.vue";
 import moment from 'moment';
+import uuid from 'uuid';
+import hash from 'object-hash';
 
 export default {
     name: 'ViewOffence',
@@ -311,6 +324,7 @@ export default {
         vm.awe = null;
 
         return {
+            uuid: 0,
             workflow_type :'',
             workflowBindId :'',
             offender_search_type: "individual",
@@ -323,37 +337,25 @@ export default {
             idLocationFieldsAddress: vm.guid + "LocationFieldsAddress",
             idLocationFieldsDetails: vm.guid + "LocationFieldsDetails",
             sanctionOutcomeInitialised: false,
+            objectHash : null,
+            hashAttributeWhitelist: [
+                'alleged_offences',
+                'allocated_group_id',
+                'date_of_issue',
+                'details',
+                'district_id',
+                'identifier',
+                'location',
+                'lodgement_number',
+                'occurrence_date_from',
+                'occurrence_date_to',
+                'occurrence_time_from',
+                'occurrence_time_to',
+                'occurrence_from_to',
+                'offenders',
+                'region_id',
+            ],
 
-            offence: {
-                id: null,
-                call_email_id: null,
-                inspection_id: null,
-                identifier: '',
-                status: 'draft',
-                offenders: [],
-                alleged_offences: [],
-                location: {
-                    type: 'Feature',
-                    properties: {
-                        town_suburb: null,
-                        street: null,
-                        state: 'WA',
-                        postcode: null,
-                        country: 'Australia',
-                        details: ''
-                    },
-                    geometry: {
-                        'type': 'Point',
-                        'coordinates': []
-                    }
-                },
-                occurrence_from_to: true,
-                occurrence_date_from: null,
-                occurrence_date_to: null,
-                occurrence_time_from: null,
-                occurrence_time_to: null,
-                details: ''
-            },
             current_alleged_offence: {  // Store the alleged offence temporarily once selected in awesomplete. Cleared when clicking on the "Add" button.
                 id: null,
                 act: "",
@@ -361,7 +363,7 @@ export default {
                 offence_text: ""
             },
             current_offender: null,  // Store the offender temporarily once selected in awesomplete. Cleared when clicking on the "Add" button.
-            offender_search_type: "individual",
+            //offender_search_type: "individual",
 
             comms_url: helpers.add_endpoint_json(
                 api_endpoints.offence,
@@ -375,96 +377,172 @@ export default {
                 api_endpoints.offence,
                 this.$route.params.offence_id + "/action_log"
             ),
-            dtHeadersOffender: ["id", "Individual/Organisation", "Details", "Action"],
+            dtHeadersOffender: [
+                "id", 
+                "Individual/Organisation", 
+                "Details", 
+                "Action",
+                "Reason for removal",
+            ],
             dtHeadersAllegedOffence: [
                 "id",
                 "Act",
                 "Section/Regulation",
                 "Alleged Offence",
-                "Action"
+                "Action",
+                "Reason for removal",
             ],
             dtOptionsOffender: {
                 columns: [
                     {
-                        data: "id",
-                        visible: false
-                    },
-                    {
-                        data: "data_type",
-                        visible: true,
+                        visible: false,
                         mRender: function(data, type, row) {
-                            if(row.removed){
-                                return '<strike>' + row.data_type + '</strike>';
-                            } else {
-                                return row.data_type;
-                            }
+                            return row.offender.id;
                         }
                     },
                     {
-                        //data: "",
                         mRender: function(data, type, row) {
-                            console.log('mRender');
-                            if (row.data_type == "individual") {
-                                let full_name = [row.first_name, row.last_name].filter(Boolean).join(" ");
-                                let email = row.email ? "E:" + row.email : "";
-                                let p_number = row.phone_number ? "P:" + row.phone_number : "";
-                                let m_number = row.mobile_number ? "M:" + row.mobile_number : "";
-                                let dob = row.dob ? "DOB:" + row.dob : "DOB: ---";
+                            let data_type = '';
+                            if (row.offender.person){
+                                data_type = 'individual';
+                            }
+                            else {
+                                data_type = 'organisation';
+                            }
+                            if(row.offender.removed){
+                                data_type = '<strike>' + data_type + '</strike>';
+                            } 
+                            return data_type;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            if (row.offender.person) {
+                                let full_name = [row.offender.person.first_name, row.offender.person.last_name].filter(Boolean).join(" ");
+                                let email = row.offender.person.email ? "E:" + row.offender.person.email : "";
+                                let p_number = row.offender.person.phone_number ? "P:" + row.offender.person.phone_number : "";
+                                let m_number = row.offender.person.mobile_number ? "M:" + row.offender.person.mobile_number : "";
+                                let dob = row.offender.person.dob ? "DOB:" + row.offender.person.dob : "DOB: ---";
                                 let myLabel = ["<strong>" + full_name + "</strong>", email, p_number, m_number, dob].filter(Boolean).join("<br />");
-                                if (row.removed){
+                                if (row.offender.removed){
                                     myLabel = '<strike>' + myLabel + '</strike>';
                                 }
-
                                 return myLabel;
-                            } else if (row.data_type == "organisation") {
-                                let name = row.name ? row.name : "";
-                                let abn = row.abn ? "ABN:" + row.abn : "";
+                            } else if (row.offender.organisation) {
+                                let name = row.offender.organisation.name ? row.offender.organisation.name : "";
+                                let abn = row.offender.organisation.abn ? "ABN:" + row.offender.organisation.abn : "";
                                 let myLabel = ["<strong>" + name + "</strong>", abn].filter(Boolean).join("<br />");
-                                if (row.removed){
+                                if (row.offender.removed){
                                     myLabel = '<strike>' + myLabel + '</strike>';
                                 }
-
                                 return myLabel;
                             }
                         }
                     },
                     {
-                        data: "Action",
                         mRender: function(data, type, row) {
-                            if (row.removed){
-                                return ('<a href="#" class="restore_button" data-offender-id="' + row.id + '">Restore</a>');
-                            } else {
-                                return ('<a href="#" class="remove_button" data-offender-id="' + row.id + '">Remove</a>');
+                            let ret_str = row.offender.number_linked_sanction_outcomes_active + '(' + row.offender.number_linked_sanction_outcomes_total + ')';
+                            if (row.offence.in_editable_status && row.offence.can_user_action){
+                                if (row.offender.removed){
+                                    ret_str = ret_str + '<a href="#" class="restore_button" data-offender-uuid="' + row.offender.uuid + '">Restore</a>';
+                                } else {
+                                    if (!row.offender.number_linked_sanction_outcomes_active){
+                                        ret_str = ret_str + '<a href="#" class="remove_button" data-offender-uuid="' + row.offender.uuid + '">Remove</a>';
+                                    }
+                                }
                             }
+                            return ret_str;
+                        }
+                    },
+
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = '';
+                            if (row.offender.removed){
+                                if(row.offender.reason_for_removal){
+                                    ret_str = ret_str + row.offender.reason_for_removal;
+                                } else {
+                                    ret_str = ret_str + '<textarea class="reason_element" data-offender-uuid="' + row.offender.uuid + '">' + row.offender.reason_for_removal + '</textarea>';
+                                }
+                            }
+                            return ret_str;
                         }
                     }
+
                 ]
             },
             dtOptionsAllegedOffence: {
                 columns: [
-                {
-                    data: "id",
-                    visible: false
-                },
-                {
-                    data: "Act"
-                },
-                {
-                    data: "Section/Regulation"
-                },
-                {
-                    data: "Alleged Offence"
-                },
-                {
-                    data: "Action",
-                    mRender: function(data, type, row) {
-                    return (
-                        '<a href="#" class="remove_button" data-alleged-offence-id="' +
-                        row.id +
-                        '">Remove</a>'
-                    );
+                    {
+                        visible: false,
+                        mRender: function(data, type, row) {
+                            return row.allegedOffence.id;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = row.allegedOffence.section_regulation.act;
+                            if (row.allegedOffence.removed) {
+                                ret_str = '<strike>' + ret_str + '</strike>';
+                            }
+                            return ret_str;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = row.allegedOffence.section_regulation.name;
+                            if (row.allegedOffence.removed) {
+                                ret_str = '<strike>' + ret_str + '</strike>';
+                            }
+                            return ret_str;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = row.allegedOffence.section_regulation.offence_text;
+                            if (row.allegedOffence.removed) {
+                                ret_str = '<strike>' + ret_str + '</strike>';
+                            }
+                            return ret_str;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = row.allegedOffence.number_linked_sanction_outcomes_active + '(' + row.allegedOffence.number_linked_sanction_outcomes_total + ')';
+                            if (row.offence.in_editable_status && row.offence.can_user_action){
+                                if (row.allegedOffence.removed){
+                                    ret_str = ret_str + '<a href="#" class="restore_button" data-alleged-offence-uuid="' + row.allegedOffence.uuid + '">Restore</a>';
+                                } else {
+                                    if (!row.allegedOffence.number_linked_sanction_outcomes_active){
+                                        ret_str = ret_str + '<a href="#" class="remove_button" data-alleged-offence-uuid="' + row.allegedOffence.uuid + '">Remove</a>';
+                                    }
+                                }
+                            }
+                            return ret_str;
+
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = '';
+
+                            let num_chars = 20;
+                            if (row.allegedOffence.removed){
+                                if(row.allegedOffence.reason_for_removal){
+                                    let name = row.allegedOffence.reason_for_removal;
+                                    let shortText = (name.length > num_chars) ?
+                                        '<span title="' + name + '">' + $.trim(name).substring(0, num_chars).split(" ").slice(0, -1).join(" ") + '...</span>' :
+                                        name;
+                                    ret_str = ret_str + shortText;
+
+                                } else {
+                                    ret_str = ret_str + '<textarea class="reason_element" data-alleged-offence-uuid="' + row.allegedOffence.uuid + '">' + row.allegedOffence.reason_for_removal + '</textarea>';
+                                }
+                            }
+                            return ret_str;
+
+                        }
                     }
-                }
                 ]
             }
         }
@@ -474,16 +552,32 @@ export default {
         OffenceWorkflow,
         CommsLogs,
         datatable,
-        PersonSearch,
+        SearchPersonOrganisation,
         MapLocation,
-        CreateNewPerson,
+        //CreateNewPerson,
         RelatedItems,
         SanctionOutcome,
     },
     computed: {
         ...mapGetters('offenceStore', {
-            //offence: "offence",
+            offence: "offence",
         }),
+        readonlyForm: function() {
+            return !this.canUserEdit;
+        },
+        canUserEdit: function() {
+            let visibility = false;
+            if (this.canUserAction){
+                if (this.offence.status.id === this.STATUS_DRAFT || this.offence.status.id === this.STATUS_OPEN){
+                    visibility = true;
+                }
+            }
+            return visibility;
+        },
+        updateSearchPersonOrganisationBindId: function() {
+            this.uuid += 1
+            return 'offender' + this.uuid
+        },
         occurrenceDateLabel: function() {
             if (this.offence.occurrence_from_to) {
                 return "Occurrence date from";
@@ -555,46 +649,123 @@ export default {
     },
     methods: {
         ...mapActions('offenceStore', {
-          setRelatedItems: 'setRelatedItems',
+            loadOffenceVuex: 'loadOffence',
+            saveOffence: 'saveOffence',
+            setAssignedToId: 'setAssignedToId',
+            setCanUserAction: 'setCanUserAction',
+            setRelatedItems: 'setRelatedItems',
         }),
-        save: async function() {
-            try{
-                let fetchUrl = helpers.add_endpoint_json(api_endpoints.offence, this.offence.id + '/update_offence');
-                //fetchUrl = '/api/offence/' + this.offence.id + '/update_offence.json';
-
-                let payload = new Object();
-                Object.assign(payload, this.offence);
-                if (payload.occurrence_date_from) {
-                    payload.occurrence_date_from = moment(payload.occurrence_date_from, 'DD/MM/YYYY').format('YYYY-MM-DD');
-                }
-                if (payload.occurrence_date_to) {
-                    payload.occurrence_date_to = moment(payload.occurrence_date_to, 'DD/MM/YYYY').format('YYYY-MM-DD');
-                }
-                payload.status = 'open'
-
-                  // Collect offenders data from the datatable, and set them to the vuex
-                  let offenders = this.$refs.offender_table.vmDataTable.rows().data().toArray();
-                  payload.offenders = offenders;
-
-                  // Collect alleged offence data from the datatable, and set them to the vuex
-                  let alleged_offences = this.$refs.alleged_offence_table.vmDataTable.rows().data().toArray();
-                  let alleged_offence_ids = alleged_offences.map(a => {
-                    return { id: a.id }; // We just need id to create relations between the offence and the alleged offence(s)
-                  });
-                  payload.alleged_offences = alleged_offence_ids;
-
-                const savedOffence = await Vue.http.post(fetchUrl, payload);
-                Vue.set(this, 'offence', savedOffence.body);
-                await swal("Saved", "The record has been saved", "success");
-                return savedOffence;
-            } catch (err) {
-                if (err.body.non_field_errors){
-                    await swal("Error", err.body.non_field_errors[0], "error");
-                } else {
-                    await swal("Error", "There was an error saving the record", "error");
+        constructOffenceDedicatedPage: async function(){
+            await this.loadOffenceVuex({offence_id: this.$route.params.offence_id});
+            this.constructAllegedOffencesTable();
+            this.constructOffendersTable();
+            this.updateObjectHash();
+        },
+        updateObjectHash: function() {
+            this.objectHash = this.calculateHash();
+        },
+        calculateHash: function() {
+            let copiedObject = {}
+            Object.getOwnPropertyNames(this.offence).forEach(
+                (val, idx, array) => {
+                    if (this.hashAttributeWhitelist.includes(val)) {
+                        copiedObject[val] = this.offence[val]
+                    }
+                });
+            return hash(copiedObject);
+        },
+        formChanged: function(){
+            let changed = false;
+            if (!this.readonlyForm){
+                if(this.objectHash !== this.calculateHash()){
+                    changed = true;
                 }
             }
+            return changed;
+        },
+        save: async function(){
+            try {
+                await this.saveOffence();
+                await swal("Saved", "The record has been saved", "success");
 
+                this.constructOffendersTable();
+                this.constructAllegedOffencesTable();
+                this.updateObjectHash();
+            } catch (err) {
+                this.processError(err);
+            }
+        },
+        leaving: function(e) {
+            let vm = this;
+            let dialogText = 'You have some unsaved changes.';
+            if (vm.formChanged()){
+                e.returnValue = dialogText;
+                return dialogText;
+            }
+        },
+        destroyed: function() {
+            window.removeEventListener('beforeunload', this.leaving);
+            window.removeEventListener('onblur', this.leaving);
+        },
+        saveExit: async function() {
+            try {
+                await this.saveOffence();
+                await swal("Saved", "The record has been saved", "success");
+
+                // remove redundant eventListeners
+                window.removeEventListener('beforeunload', this.leaving);
+                window.removeEventListener('onblur', this.leaving);
+
+                this.$router.push({ name: 'internal-offence-dash' });
+            } catch (err) {
+                this.processError(err);
+            }
+        },
+        processError: async function(err){
+            let errorText = '';
+            if (err.body.non_field_errors) {
+                // When non field errors raised
+                for (let i=0; i<err.body.non_field_errors.length; i++){
+                    errorText += err.body.non_field_errors[i] + '<br />';
+                }
+            } else if(Array.isArray(err.body)) {
+                // When general errors raised
+                for (let i=0; i<err.body.length; i++){
+                    errorText += err.body[i] + '<br />';
+                }
+            } else {
+                // When field errors raised
+                for (let field_name in err.body){
+                    if (err.body.hasOwnProperty(field_name)){
+                        errorText += field_name + ':<br />';
+                        for (let j=0; j<err.body[field_name].length; j++){
+                            errorText += err.body[field_name][j] + '<br />';
+                        }
+                    }
+                }
+            }
+            await swal("Error", errorText, "error");
+        },
+        updateAssignedToId: async function (user) {
+            console.log('updateAssignedToId');
+            let url = helpers.add_endpoint_join(api_endpoints.offence, this.offence.id + '/update_assigned_to_id/');
+            let payload = null;
+            if (user === 'current_user' && this.offence.user_in_group) {
+                payload = {'current_user': true};
+            } else if (user === 'blank') {
+                payload = {'blank': true};
+            } else {
+                payload = { 'assigned_to_id': this.offence.assigned_to_id };
+            }
+            let res = await Vue.http.post(
+                url,
+                payload
+            );
+            this.setAssignedToId(res.body.assigned_to_id);
+            this.setCanUserAction(res.body.can_user_action);
+            this.constructOffendersTable();
+            this.constructAllegedOffencesTable();
+            this.updateObjectHash();
         },
         openSanctionOutcome: function() {
           this.sanctionOutcomeInitialised = true;
@@ -602,8 +773,20 @@ export default {
               this.$refs.sanction_outcome.isModalOpen = true;
           });
         },
+        updateWorkflowBindId: function() {
+            let timeNow = Date.now()
+            if (this.workflow_type) {
+                this.workflowBindId = this.workflow_type + '_' + timeNow.toString();
+            } else {
+                this.workflowBindId = timeNow.toString();
+            }
+        },
         addWorkflow: function(workflow_type) {
-
+            this.workflow_type = workflow_type;
+            this.updateWorkflowBindId();
+            this.$nextTick(() => {
+                this.$refs.add_workflow.isModalOpen = true;
+            });
         },
         showHideAddressDetailsFields: function(showAddressFields, showDetailsFields) {
           if (showAddressFields) {
@@ -716,22 +899,23 @@ export default {
                 this.$refs.mapLocationComponent.invalidateSize();
             }
         },
-        newPersonCreated: function(obj) {
-          if(obj.person){
-            this.setCurrentOffender('individual', obj.person.id);
+        //newPersonCreated: function(obj) {
+        //  if(obj.person){
+        //    this.setCurrentOffender('individual', obj.person.id);
 
-            // Set fullname and DOB into the input box
-            let full_name = [obj.person.first_name, obj.person.last_name].filter(Boolean).join(" ");
-            let dob = obj.person.dob ? "DOB:" + obj.person.dob : "DOB: ---";
-            let value = [full_name, dob].filter(Boolean).join(", ");
-            this.$refs.person_search.setInput(value);
-          } else if (obj.err) {
-            console.log(err);
-          } else {
-            // Should not reach here
-          }
-        },
+        //    // Set fullname and DOB into the input box
+        //    let full_name = [obj.person.first_name, obj.person.last_name].filter(Boolean).join(" ");
+        //    let dob = obj.person.dob ? "DOB:" + obj.person.dob : "DOB: ---";
+        //    let value = [full_name, dob].filter(Boolean).join(", ");
+        //    this.$refs.search_offender.setInput(value);
+        //  } else if (obj.err) {
+        //    console.log(err);
+        //  } else {
+        //    // Should not reach here
+        //  }
+        //},
         personSelected: function(para) {
+            console.log('personSelected');
             let vm = this;
             vm.setCurrentOffender(para.data_type, para.id);
         },
@@ -748,198 +932,222 @@ export default {
           let vm = this;
           vm.newPersonBeingCreated = false;
         },
-        removeOffenderClicked: function(e) {
-          let vm = this;
 
-          let offenderId = parseInt(e.target.getAttribute("data-offender-id"));
-          vm.$refs.offender_table.vmDataTable.rows(function(idx, data, node) {
-            if (data.id === offenderId) {
-                console.log('removeOffenderClicked');
-                console.log('idx:' + idx);
-              vm.$refs.offender_table.vmDataTable.rows(idx).data()[0].removed = true;
-                vm.$refs.offender_table.vmDataTable.rows(idx).invalidate();
+        reasonOffenderLostFocus: function(e) {
+            console.log('reason lost focus');
+            let offender_uuid = e.target.getAttribute("data-offender-uuid");
+
+            for (let i=0; i<this.offence.offenders.length; i++){
+                let offender = this.offence.offenders[i];
+                if (offender.uuid == offender_uuid){
+                    offender.reason_for_removal = e.target.value;
+                }
             }
-          });
+        },
+        reasonAllegedOffenceLostFocus: function(e) {
+
+            console.log('reason lost focus');
+            let alleged_offence_uuid = e.target.getAttribute("data-alleged-offence-uuid");
+
+            for (let i=0; i<this.offence.alleged_offences.length; i++){
+                let alleged_offence = this.offence.alleged_offences[i];
+                if (alleged_offence.uuid == alleged_offence_uuid){
+                    alleged_offence.reason_for_removal = e.target.value;
+                }
+            }
+        },
+        removeOffenderClicked: function(e) {
+            console.log('removeOffenderClicked');
+            let offender_uuid = e.target.getAttribute("data-offender-uuid");
+
+            // Remove offender
+            for (let i=0; i<this.offence.offenders.length; i++){
+                let offender = this.offence.offenders[i];
+                if (offender.uuid == offender_uuid){
+                    if (offender.id){
+                        // this offender exists in the database
+                        console.log('existing');
+                        offender.removed = true;
+                    } else {
+                        // this is new offender
+                        console.log('new');
+                        this.offence.offenders.splice(i, 1);
+                    }
+                }
+            }
+            this.constructOffendersTable();
         },
         restoreOffenderClicked: function(e){
-          let vm = this;
+            console.log('restoreOffenderClicked');
+            let offender_uuid = e.target.getAttribute("data-offender-uuid");
 
-          let offenderId = parseInt(e.target.getAttribute("data-offender-id"));
-          vm.$refs.offender_table.vmDataTable.rows(function(idx, data, node) {
-            if (data.id === offenderId) {
-                console.log('removeOffenderClicked');
-                console.log('idx:' + idx);
-              vm.$refs.offender_table.vmDataTable.rows(idx).data()[0].removed = false;
-                vm.$refs.offender_table.vmDataTable.rows(idx).invalidate();
+            // Restore offender
+            for (let i=0; i<this.offence.offenders.length; i++){
+                let offender = this.offence.offenders[i];
+                if (offender.uuid == offender_uuid){
+                    if (offender.id){
+                        // this offender exists in the database
+                        console.log('existing');
+                        offender.removed = false;
+                    } else {
+                        // this is new offender
+                        // Should not reach here
+                    }
+                }
             }
-          });
-
+            this.constructOffendersTable();
         },
-        removeClicked: function(e) {
-          let vm = this;
+        restoreAllegedOffenceClicked: function(e) {
+            console.log('restoreAllegedOffenceClicked');
+            let alleged_offence_uuid = e.target.getAttribute("data-alleged-offence-uuid");
 
-          let allegedOffenceId = parseInt(
-            e.target.getAttribute("data-alleged-offence-id")
-          );
-          vm.$refs.alleged_offence_table.vmDataTable.rows(function(
-            idx,
-            data,
-            node
-          ) {
-            if (data.id === allegedOffenceId) {
-              vm.$refs.alleged_offence_table.vmDataTable
-                .row(idx)
-                .remove()
-                .draw();
+            // Restore alleged_offence
+            for (let i=0; i<this.offence.alleged_offences.length; i++){
+                let alleged_offence = this.offence.alleged_offences[i];
+                if (alleged_offence.uuid == alleged_offence_uuid){
+                    if (alleged_offence.id){
+                        // this alleged_offence exists in the database
+                        console.log('existing');
+                        alleged_offence.removed = false;
+                    } else {
+                        // this is new alleged_offence
+                        // Should not reach here
+                    }
+                }
             }
-          });
+            this.constructAllegedOffencesTable();
         },
-        addOffenderClicked: function() {
-          let vm = this;
+        removeAllegedOffenceClicked: function(e) {
+            console.log('removeAllegedOffenceClicked');
+            let alleged_offence_uuid = e.target.getAttribute("data-alleged-offence-uuid");
 
-          if (
-            vm.current_offender &&
-            vm.current_offender.id &&
-            vm.current_offender.data_type
-          ) {
-            let already_exists = false;
-
-            let ids = vm.$refs.offender_table.vmDataTable.columns(0).data()[0];
-            let data_types = vm.$refs.offender_table.vmDataTable.columns(1).data()[0];
-
-            for (let i = 0; i < ids.length; i++) {
-              if (ids[i] == vm.current_offender.id && data_types[i] == vm.current_offender.data_type) {
-                already_exists = true;
-                break;
-              }
+            // Remove offender
+            for (let i=0; i<this.offence.alleged_offences.length; i++){
+                let alleged_offence = this.offence.alleged_offences[i];
+                if (alleged_offence.uuid == alleged_offence_uuid){
+                    if (alleged_offence.id){
+                        // this alleged_offence exists in the database
+                        console.log('existing');
+                        alleged_offence.removed = true;
+                    } else {
+                        // this is new alleged_offence
+                        console.log('new');
+                        this.offence.alleged_offences.splice(i, 1);
+                    }
+                }
             }
+            this.constructAllegedOffencesTable();
+        },
+        addOffenderClicked: async function() {
+            console.log('addOffenderClicked');
+            if (this.current_offender && this.current_offender.id && this.current_offender.data_type) {
+                // save person before adding to offender list
+                await this.$refs.search_offender.parentSave()
 
-            if (!already_exists) {
-                vm.addOffenderToTable(vm.current_offender);
+                // Check if the item is already in the list
+                let already_exists = false;
+                for (let i=0; i<this.offence.offenders.length; i++){
+                    let offender = this.offence.offenders[i];
+                    if (this.current_offender.data_type == 'individual'){
+                        if (offender.person){
+                            if (!offender.removed && offender.person.id == this.current_offender.id){
+                                already_exists = true;
+                            }
+                        }
+                    } else if (this.current_offender.data_type == 'organisation'){
+                        if (offender.organisation){
+                            if (!offender.removed && offender.organisation.id == this.current_offender.id){
+                                already_exists = true;
+                            }
+                        }
+                    }
+                }
+
+                if (!already_exists) {
+                    let offender_obj = {
+                        id: '', 
+                        can_user_action: true, 
+                        removed: false, 
+                        reason_for_removal: '', 
+                        person: null,
+                        organisation: null,
+                        number_linked_sanction_outcomes_total: 0,
+                        number_linked_sanction_outcomes_active: 0,
+                        uuid: uuid()
+                    };
+                    if (this.current_offender.data_type == 'individual'){
+                        // Add person as offender object
+                        offender_obj['person'] = this.current_offender;
+                    } else if (this.current_offender.data_type == 'organisation'){
+                        // Add organisation as offender object
+                        offender_obj['organisation'] = this.current_offender;
+                    }
+                    this.offence.offenders.push(offender_obj);
+                }
             }
-          }
-
-          vm.setCurrentOffenderEmpty();
+            this.constructOffendersTable();
+            this.setCurrentOffenderEmpty();
         },
         addAllegedOffenceClicked: function() {
-          let vm = this;
+            console.log('addAllegedOffenceClicked');
+            if (this.current_alleged_offence && this.current_alleged_offence.id) {
 
-          if (vm.current_alleged_offence.id) {
-            let already_exists = vm.$refs.alleged_offence_table.vmDataTable
-              .columns(0)
-              .data()[0]
-              .includes(vm.current_alleged_offence.id);
+                // Check if the item is already in the list
+                let already_exists = false;
+                for (let i=0; i<this.offence.alleged_offences.length; i++){
+                    let alleged_offence = this.offence.alleged_offences[i];
+                    if(alleged_offence.section_regulation.id == this.current_alleged_offence.id){
+                        already_exists = true;
+                    }
+                }
 
-            if (!already_exists) {
-                vm.addAllegedOffenceToTable(vm.current_alleged_offence);
+                if (!already_exists) {
+                    let alleged_offence_obj = {
+                        id: '', 
+                        removed: false, 
+                        reason_for_removal: '', 
+                        removed_by_id: null,
+                        section_regulation: this.current_alleged_offence,
+                        number_linked_sanction_outcomes_total: 0,
+                        number_linked_sanction_outcomes_active: 0,
+                        uuid: uuid()
+                    };
+                    this.offence.alleged_offences.push(alleged_offence_obj);
+                }
             }
-          }
 
-          vm.setCurrentAllegedOffenceEmpty();
+            this.constructAllegedOffencesTable();
+            this.setCurrentAllegedOffenceEmpty();
         },
-        transferAllegedOffencesToTable: function(){
-            // This function is for filling existing alleged offences data into the table
+        constructAllegedOffencesTable: function(){
+            this.$refs.alleged_offence_table.vmDataTable.clear().draw();
             if (this.offence.alleged_offences){
                 for(let i=0; i<this.offence.alleged_offences.length; i++){
                     this.addAllegedOffenceToTable(this.offence.alleged_offences[i]);
                 }
-                this.offence.alleged_offences = [];
             }
         },
-        transferOffendersToTable: function(){
-            // This function is for filling existing offenders data into the table
+        addAllegedOffenceToTable: function(allegedOffence){
+            allegedOffence.uuid = uuid();
+            this.$refs.alleged_offence_table.vmDataTable.row.add({ allegedOffence: allegedOffence, offence: this.offence }).draw();
+        },
+        constructOffendersTable: function(){
+            console.log('constructOffendersTable');
+            this.$refs.offender_table.vmDataTable.clear().draw();
             if (this.offence.offenders){
                 for(let i=0; i<this.offence.offenders.length; i++){
                     this.addOffenderToTable(this.offence.offenders[i]);
                 }
-                this.offence.offenders = [];
             }
         },
-        addAllegedOffenceToTable: function(allegedOffence){
-              this.$refs.alleged_offence_table.vmDataTable.row.add({
-                  id: allegedOffence.id,
-                  Act: allegedOffence.act,
-                  "Section/Regulation": allegedOffence.name,
-                  "Alleged Offence": allegedOffence.offence_text
-              }).draw();
-        },
-        addPersonToTable: function(person) {
-              this.$refs.offender_table.vmDataTable.row
-                .add({
-                  removed: false,
-                  reason_for_removal: '',
-                  data_type: 'individual',
-                  id: person.id,
-                  first_name: person.first_name,
-                  last_name: person.last_name,
-                  email: person.email,
-                  p_number: person.p_number,
-                  m_number: person.m_numberum,
-                  dob: person.dob
-                }).draw();
-        },
-        addPersonExistingToTable: function(offender) {
-              this.$refs.offender_table.vmDataTable.row
-                .add({
-                  removed: offender.removed,
-                  reason_for_removal: offender.reason_for_removal,
-                  data_type: 'individual',
-                  id: offender.person.id,
-                  first_name: offender.person.first_name,
-                  last_name: offender.person.last_name,
-                  email: offender.person.email,
-                  p_number: offender.person.p_number,
-                  m_number: offender.person.m_numberum,
-                  dob: offender.person.dob
-                }).draw();
-        },
-        addOrganisationToTable: function(organisation){
-            this.$refs.offender_table.vmDataTable.row
-              .add({
-                removed: false,
-                reason_for_removal: '',
-                data_type: 'organisation',
-                id: organisation.id,
-                name: organisation.name,
-                abn: organisation.abn
-              }).draw();
-        },
-        addOrganisationExistingToTable: function(offender){
-            this.$refs.offender_table.vmDataTable.row
-              .add({
-                removed: offender.removed,
-                reason_for_removal: offender.reason_for_removal,
-                data_type: 'organisation',
-                id: offender.organisation.id,
-                name: offender.organisation.name,
-                abn: offender.organisation.abn
-              }).draw();
-        },
-        addOffenderToTable: function(offender){
-            console.log('addOffenderToTable');
-            console.log(offender);
-            let vm = this;
-            if(offender.data_type){
-                // When person/organisation is going to be added via input box (awesomplete)
-                if (offender.data_type == "individual") {
-                    this.addPersonToTable(offender);
-                } else if (offender.data_type == "organisation") {
-                    this.addOrganisationToTable(offender);
-                }
-            } else {
-                // When inserting the existing data into the table
-                if (offender.person) {
-                    this.addPersonExistingToTable(offender);
-                } else if (offender.organisation) {
-                    this.addOrganisationExistingToTable(offender);
-                }
-            }
+        addOffenderToTable: function(offender) {
+            console.log('addOffenderTotable');
+            console.log(offender.reason_for_removal);
+            offender.uuid = uuid();
+            this.$refs.offender_table.vmDataTable.row.add({ offender: offender, offence: this.offence }).draw();
         },
         markMatchedText(original_text, input) {
-          let ret_text = original_text.replace(new RegExp(input, "gi"), function(
-            a,
-            b
-          ) {
+          let ret_text = original_text.replace(new RegExp(input, "gi"), function(a, b) {
             return "<mark>" + a + "</mark>";
           });
           return ret_text;
@@ -1062,8 +1270,9 @@ export default {
         },
         setCurrentOffender: function(data_type, id) {
           let vm = this;
-
-          if (data_type == "individual") {
+          if (!id) {
+              this.current_offender = null;
+          } else if (data_type == "individual") {
             let initialisers = [utils.fetchUser(id)];
             Promise.all(initialisers).then(data => {
               vm.current_offender = data[0];
@@ -1090,96 +1299,76 @@ export default {
           }
         },
         setCurrentOffenderEmpty: function() {
-          let vm = this;
-
-          vm.current_offender = null;
-
-          $("#offender_input").val("");
-            vm.$refs.person_search.clearInput();
+            this.current_offender = {};
+            $("#offender_input").val("");
+            this.$refs.search_offender.clearInput();
         },
         setCurrentAllegedOffenceEmpty: function() {
-          let vm = this;
-
-          vm.current_alleged_offence.id = null;
-          vm.current_alleged_offence.act = "";
-          vm.current_alleged_offence.name = "";
-          vm.current_alleged_offence.offence_text = "";
-
-          $("#alleged-offence").val("");
+            this.current_alleged_offence = {};
+            $("#alleged-offence").val("");
         },
         addEventListeners: function() {
-          let vm = this;
-          let el_fr_date = $(vm.$refs.occurrenceDateFromPicker);
-          let el_fr_time = $(vm.$refs.occurrenceTimeFromPicker);
-          let el_to_date = $(vm.$refs.occurrenceDateToPicker);
-          let el_to_time = $(vm.$refs.occurrenceTimeToPicker);
+            let vm = this;
+            let el_fr_date = $(vm.$refs.occurrenceDateFromPicker);
+            let el_fr_time = $(vm.$refs.occurrenceTimeFromPicker);
+            let el_to_date = $(vm.$refs.occurrenceDateToPicker);
+            let el_to_time = $(vm.$refs.occurrenceTimeToPicker);
 
-          // "From" field
-          el_fr_date.datetimepicker({
-            format: "DD/MM/YYYY",
-            maxDate: "now",
-            showClear: true
-          });
-          el_fr_date.on("dp.change", function(e) {
-            if (el_fr_date.data("DateTimePicker").date()) {
-              vm.offence.occurrence_date_from = e.date.format("DD/MM/YYYY");
-            } else if (el_fr_date.data("date") === "") {
-              vm.offence.occurrence_date_from = "";
-            }
-          });
-          el_fr_time.datetimepicker({ format: "LT", showClear: true });
-          el_fr_time.on("dp.change", function(e) {
-            if (el_fr_time.data("DateTimePicker").date()) {
-              vm.offence.occurrence_time_from = e.date.format("LT");
-            } else if (el_fr_time.data("date") === "") {
-              vm.offence.occurrence_time_from = "";
-            }
-          });
+            // "From" field
+            el_fr_date.datetimepicker({ format: "DD/MM/YYYY", maxDate: moment().millisecond(0).second(0).minute(0).hour(0), showClear: true });
+            el_fr_date.on("dp.change", function(e) {
+              if (el_fr_date.data("DateTimePicker").date()) {
+                vm.offence.occurrence_date_from = e.date.format("DD/MM/YYYY");
+              } else if (el_fr_date.data("date") === "") {
+                vm.offence.occurrence_date_from = null;
+              }
+            });
+            el_fr_time.datetimepicker({ format: "LT", showClear: true });
+            el_fr_time.on("dp.change", function(e) {
+              if (el_fr_time.data("DateTimePicker").date()) {
+                vm.offence.occurrence_time_from = e.date.format("LT");
+              } else if (el_fr_time.data("date") === "") {
+                vm.offence.occurrence_time_from = null;
+              }
+            });
 
-          // "To" field
-          el_to_date.datetimepicker({
-            format: "DD/MM/YYYY",
-            maxDate: "now",
-            showClear: true
-          });
-          el_to_date.on("dp.change", function(e) {
-            if (el_to_date.data("DateTimePicker").date()) {
-              vm.offence.occurrence_date_to = e.date.format("DD/MM/YYYY");
-            } else if (el_to_date.data("date") === "") {
-              vm.offence.occurrence_date_to = "";
-            }
-          });
-          el_to_time.datetimepicker({ format: "LT", showClear: true });
-          el_to_time.on("dp.change", function(e) {
-            if (el_to_time.data("DateTimePicker").date()) {
-              vm.offence.occurrence_time_to = e.date.format("LT");
-            } else if (el_to_time.data("date") === "") {
-              vm.offence.occurrence_time_to = "";
-            }
-          });
+            // "To" field
+            el_to_date.datetimepicker({ format: "DD/MM/YYYY", maxDate: moment().millisecond(0).second(0).minute(0).hour(0), showClear: true });
+            el_to_date.on("dp.change", function(e) {
+              if (el_to_date.data("DateTimePicker").date()) {
+                vm.offence.occurrence_date_to = e.date.format("DD/MM/YYYY");
+              } else if (el_to_date.data("date") === "") {
+                vm.offence.occurrence_date_to = null;
+              }
+            });
+            el_to_time.datetimepicker({ format: "LT", showClear: true });
+            el_to_time.on("dp.change", function(e) {
+              if (el_to_time.data("DateTimePicker").date()) {
+                vm.offence.occurrence_time_to = e.date.format("LT");
+              } else if (el_to_time.data("date") === "") {
+                vm.offence.occurrence_time_to = null;
+              }
+            });
 
-          $("#alleged-offence-table").on("click", ".remove_button", vm.removeClicked);
-          $("#offender-table").on("click", ".remove_button", vm.removeOffenderClicked);
-          $("#offender-table").on("click", ".restore_button", vm.restoreOffenderClicked);
+            $("#alleged-offence-table").on("click", ".remove_button", vm.removeAllegedOffenceClicked);
+            $("#alleged-offence-table").on("click", ".restore_button", vm.restoreAllegedOffenceClicked);
+            $("#alleged-offence-table").on("blur", ".reason_element", vm.reasonAllegedOffenceLostFocus);
+
+            $("#offender-table").on("click", ".remove_button", vm.removeOffenderClicked);
+            $("#offender-table").on("click", ".restore_button", vm.restoreOffenderClicked);
+            $("#offender-table").on("blur", ".reason_element", vm.reasonOffenderLostFocus);
+
+            window.addEventListener('beforeunload', this.leaving);
+            window.addEventListener('onblur', this.leaving);
         },
-        loadOffence: async function (offence_id) {
-            let returnedOffence = await Vue.http.get(helpers.add_endpoint_json(api_endpoints.offence, offence_id));
-            if (returnedOffence.body.occurrence_date_to) {
-                returnedOffence.body.occurrence_date_to = moment(returnedOffence.body.occurrence_date_to, 'YYYY-MM-DD').format('DD/MM/YYYY');
-            }
-            if (returnedOffence.body.occurrence_date_from) {
-                returnedOffence.body.occurrence_date_from = moment(returnedOffence.body.occurrence_date_from, 'YYYY-MM-DD').format('DD/MM/YYYY');
-            }
-            Vue.set(this, 'offence', returnedOffence.body);
-            console.log('returnedOffence');
-            console.log(returnedOffence);
-        }
     },
     created: async function() {
         if (this.$route.params.offence_id) {
-            await this.loadOffence(this.$route.params.offence_id);
-            this.transferAllegedOffencesToTable();
-            this.transferOffendersToTable();
+            await this.constructOffenceDedicatedPage();
+          //  await this.loadOffenceVuex({offence_id: this.$route.params.offence_id});
+          //  this.constructAllegedOffencesTable();
+          //  this.constructOffendersTable();
+          //  this.objectHash = hash(this.offence);
         }
         this.$nextTick(function() {
             this.initAwesompleteAllegedOffence();

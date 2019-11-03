@@ -18,13 +18,16 @@ from rest_framework.response import Response
 from rest_framework_datatables.filters import DatatablesFilterBackend
 from rest_framework_datatables.pagination import DatatablesPageNumberPagination
 
-from wildlifecompliance.components.main.api import process_generic_document
-
+from wildlifecompliance.components.main.process_document import (
+        process_generic_document,
+        save_default_document_obj
+        )
 from wildlifecompliance.components.call_email.models import CallEmail, CallEmailUserAction
 from wildlifecompliance.components.inspection.models import Inspection, InspectionUserAction
 from wildlifecompliance.components.main.email import prepare_mail
-from wildlifecompliance.components.offence.models import SectionRegulation, AllegedOffence
-from wildlifecompliance.components.sanction_outcome.email import send_mail
+from wildlifecompliance.components.offence.models import AllegedOffence
+from wildlifecompliance.components.section_regulation.models import SectionRegulation
+from wildlifecompliance.components.sanction_outcome.email import send_mail, send_infringement_notice
 from wildlifecompliance.components.sanction_outcome.models import SanctionOutcome, RemediationAction, \
     SanctionOutcomeCommsLogEntry, AllegedCommittedOffence, SanctionOutcomeUserAction
 from wildlifecompliance.components.sanction_outcome.serializers import SanctionOutcomeSerializer, \
@@ -33,6 +36,7 @@ from wildlifecompliance.components.sanction_outcome.serializers import SanctionO
     AllegedCommittedOffenceSerializer, AllegedCommittedOffenceCreateSerializer
 from wildlifecompliance.components.users.models import CompliancePermissionGroup, RegionDistrict
 from wildlifecompliance.helpers import is_internal
+from wildlifecompliance.components.main.models import TemporaryDocumentCollection
 
 logger = logging.getLogger('compliancemanagement')
 
@@ -48,44 +52,44 @@ class SanctionOutcomeFilterBackend(DatatablesFilterBackend):
         q_objects = Q()
 
         # Filter by the search_text
-        search_text = request.GET.get('search[value]')
+        search_text = request.GET.get('search[value]', '')
         if search_text:
             q_objects &= Q(lodgement_number__icontains=search_text) | \
                          Q(identifier__icontains=search_text) | \
                          Q(offender__person__first_name__icontains=search_text) | \
                          Q(offender__person__last_name__icontains=search_text) | \
                          Q(offender__person__email__icontains=search_text) | \
-                         Q(offender__organisation__name__icontains=search_text) | \
-                         Q(offender__organisation__abn__icontains=search_text) | \
-                         Q(offender__organisation__trading_name__icontains=search_text)
+                         Q(offender__organisation__organisation__name__icontains=search_text) | \
+                         Q(offender__organisation__organisation__abn__icontains=search_text) | \
+                         Q(offender__organisation__organisation__trading_name__icontains=search_text)
 
-        type = request.GET.get('type',).lower()
+        type = request.GET.get('type', '').lower()
         if type and type != 'all':
             q_objects &= Q(type=type)
 
-        status = request.GET.get('status',).lower()
+        status = request.GET.get('status', '').lower()
         if status and status != 'all':
             q_objects &= Q(status=status)
 
-        # payment_status = request.GET.get('payment_status',).lower()
-        # if payment_status and payment_status != 'all':
-        #     q_objects &= Q(payment_status=payment_status)
+        payment_status = request.GET.get('payment_status', '').lower()
+        if payment_status and payment_status != 'all':
+            q_objects &= Q(payment_status=payment_status)
 
-        date_from = request.GET.get('date_from',).lower()
+        date_from = request.GET.get('date_from', '').lower()
         if date_from:
             date_from = datetime.strptime(date_from, '%d/%m/%Y')
             q_objects &= Q(date_of_issue__gte=date_from)
 
-        date_to = request.GET.get('date_to',).lower()
+        date_to = request.GET.get('date_to', '').lower()
         if date_to:
             date_to = datetime.strptime(date_to, '%d/%m/%Y')
             q_objects &= Q(date_of_issue__lte=date_to)
 
-        region_id = request.GET.get('region_id',).lower()
+        region_id = request.GET.get('region_id', '').lower()
         if region_id and region_id != 'all':
             q_objects &= Q(region__id=region_id)
 
-        district_id = request.GET.get('district_id',).lower()
+        district_id = request.GET.get('district_id', '').lower()
         if district_id and district_id != 'all':
             q_objects &= Q(district__id=district_id)
 
@@ -122,9 +126,7 @@ class SanctionOutcomeFilterBackend(DatatablesFilterBackend):
 
 class SanctionOutcomePaginatedViewSet(viewsets.ModelViewSet):
     filter_backends = (SanctionOutcomeFilterBackend,)
-    # filter_backends = (DatatablesFilterBackend,)
     pagination_class = DatatablesPageNumberPagination
-    # renderer_classes = (InspectionRenderer,)
     queryset = SanctionOutcome.objects.none()
     serializer_class = SanctionOutcomeDatatableSerializer
     page_size = 10
@@ -138,7 +140,19 @@ class SanctionOutcomePaginatedViewSet(viewsets.ModelViewSet):
     @list_route(methods=['GET', ])
     def get_paginated_datatable(self, request, *args, **kwargs):
         queryset = self.get_queryset()
+        queryset = self.filter_queryset(queryset)
+        self.paginator.page_size = queryset.count()
+        result_page = self.paginator.paginate_queryset(queryset, request)
+        serializer = SanctionOutcomeDatatableSerializer(result_page, many=True, context={'request': request})
+        ret = self.paginator.get_paginated_response(serializer.data)
+        return ret
 
+    @list_route(methods=['GET', ])
+    def external_datatable_list(self, request, *args, **kwargs):
+        """
+        This function is called from the external dashboard page by external user
+        """
+        queryset = SanctionOutcome.objects_for_external.filter(Q(offender__person=request.user))
         queryset = self.filter_queryset(queryset)
         self.paginator.page_size = queryset.count()
         result_page = self.paginator.paginate_queryset(queryset, request)
@@ -151,10 +165,53 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
     queryset = SanctionOutcome.objects.all()
     serializer_class = SanctionOutcomeSerializer
 
+    # @detail_route(methods=['post'])
+    # @renderer_classes((JSONRenderer,))
+    # def sanction_outcome_infringement_penalty_checkout(self, request, *args, **kwargs):
+    #     try:
+    #         instance = self.get_object()
+    #         product_lines = []
+    #         # application_submission = u'Application submitted by {} confirmation {}'.format(
+    #         #     u'{} {}'.format(instance.submitter.first_name, instance.submitter.last_name), instance.lodgement_number)
+    #         sanction_outcome_submission = u'Sanction outcome: {} submitted by {}'.format(request.user.get_full_name(), instance.lodgement_number)
+    #         set_session_infringement_invoice(request.session, instance)
+    #         now = datetime.now().strftime('%Y-%m-%d %H:%M')
+    #         product_lines.append({
+    #             # 'ledger_description': '{}'.format(instance.licence_type_name),
+    #             'ledger_description': 'Infringement Penalty - {} - {}'.format(now, 11111),
+    #             'quantity': 1,
+    #             'price_incl_tax': Decimal(100.00),
+    #             'price_excl_tax': Decimal(100.00),
+    #             # 'price_incl_tax': str(instance.application_fee),
+    #             # 'price_excl_tax': str(calculate_excl_gst(instance.application_fee)),
+    #             'oracle_code': ''
+    #         })
+    #         additional_dict = {
+    #             # This dictionalry actually updates following three urls in the checkout() function called below
+    #             'fallback_url': request.build_absolute_uri('/'),
+    #             'return_url': request.build_absolute_uri(reverse('external-infringement-penalty-success-invoice')),
+    #             'return_preload_url': request.build_absolute_uri('/'),
+    #         }
+    #         checkout_result = checkout(request, instance, lines=product_lines, invoice_text=sanction_outcome_submission, add_checkout_params=additional_dict)
+    #         return checkout_result
+    #     except serializers.ValidationError:
+    #         print(traceback.print_exc())
+    #         raise
+    #     except ValidationError as e:
+    #         if hasattr(e, 'error_dict'):
+    #             raise serializers.ValidationError(repr(e.error_dict))
+    #         else:
+    #             raise serializers.ValidationError(repr(e[0].encode('utf-8')))
+    #     except Exception as e:
+    #         print(traceback.print_exc())
+    #         raise serializers.ValidationError(str(e))
+
     def get_queryset(self):
         # user = self.request.user
         if is_internal(self.request):
             return SanctionOutcome.objects.all()
+        else:
+            return SanctionOutcome.objects_for_external.filter(offender__person=self.request.user)
         return SanctionOutcome.objects.none()
 
     @list_route(methods=['GET', ])
@@ -169,6 +226,22 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
     def statuses(self, request, *args, **kwargs):
         res_obj = []
         for choice in SanctionOutcome.STATUS_CHOICES:
+            res_obj.append({'id': choice[0], 'display': choice[1]});
+        res_json = json.dumps(res_obj)
+        return HttpResponse(res_json, content_type='application/json')
+
+    @list_route(methods=['GET', ])
+    def payment_statuses(self, request, *args, **kwargs):
+        res_obj = []
+        for choice in SanctionOutcome.PAYMENT_STATUS_CHOICES:
+            res_obj.append({'id': choice[0], 'display': choice[1]});
+        res_json = json.dumps(res_obj)
+        return HttpResponse(res_json, content_type='application/json')
+
+    @list_route(methods=['GET', ])
+    def statuses_for_external(self, request, *args, **kwargs):
+        res_obj = []
+        for choice in SanctionOutcome.STATUS_CHOICES_FOR_EXTERNAL:
             res_obj.append({'id': choice[0], 'display': choice[1]});
         res_json = json.dumps(res_obj)
         return HttpResponse(res_json, content_type='application/json')
@@ -250,7 +323,10 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
@@ -267,7 +343,10 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
@@ -284,12 +363,16 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
 
     def update(self, request, *args, **kwargs):
+        # raise serializers.ValidationError('This is ValidationError in the update()')
         """
         Update existing sanction outcome
         """
@@ -305,7 +388,11 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
                 # No workflow
                 # No allocated group changes
 
-                serializer = SaveSanctionOutcomeSerializer(instance, data=request_data, partial=True)
+                # Add number of files attached to the instance
+                # By the filefield component in the front end, files should be already uploaded as attachment of this instance
+                num_of_documents = instance.documents.all().count()
+
+                serializer = SaveSanctionOutcomeSerializer(instance, data=request_data, partial=True, context={'num_of_documents_attached': num_of_documents})
                 serializer.is_valid(raise_exception=True)
                 instance = serializer.save()
 
@@ -314,48 +401,72 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
                 # Once removed=True, never set removed=False
                 for existing_aco in AllegedCommittedOffence.objects.filter(sanction_outcome=instance):
                     for new_aco in request_data.get('alleged_committed_offences', {}):
-                        if existing_aco.id == new_aco.get('id'):
+                        if existing_aco.id == new_aco.get('id') and existing_aco.included != new_aco.get('included'):
+                            serializer = AllegedCommittedOffenceSerializer(existing_aco, data={'included': new_aco.get('included')}, partial=True)
+                            serializer.is_valid(raise_exception=True)
+                            serializer.save()
+                            if existing_aco.included:
+                                instance.log_user_action(SanctionOutcomeUserAction.ACTION_RESTORE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
+                            else:
+                                instance.log_user_action(SanctionOutcomeUserAction.ACTION_REMOVE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
+
+                # for existing_aco in AllegedCommittedOffence.objects.filter(sanction_outcome=instance):
+                #     for new_aco in request_data.get('alleged_committed_offences', {}):
+                #         if existing_aco.id == new_aco.get('id'):
+
                             # existing alleged committed offence (existing_aco) is being modified
                             # to the new alleged committed offence (new_aco)
-                            if existing_aco.included:
-                                if not existing_aco.removed and new_aco.get('removed'):
-                                    # when existing alleged committed offence is going to be removed
-                                    serializer = AllegedCommittedOffenceSerializer(existing_aco, data={'removed': True, 'removed_by_id': request.user.id})
-                                    serializer.is_valid(raise_exception=True)
-                                    serializer.save()
-                                    instance.log_user_action(SanctionOutcomeUserAction.ACTION_REMOVE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
+                            # if existing_aco.included:
+                            #     if not existing_aco.removed and new_aco.get('removed'):
+                            #         # when existing alleged committed offence is going to be removed
+                            #         serializer = AllegedCommittedOffenceSerializer(existing_aco, data={'removed': True, 'removed_by_id': request.user.id})
+                            #         serializer.is_valid(raise_exception=True)
+                            #         serializer.save()
+                            #         instance.log_user_action(SanctionOutcomeUserAction.ACTION_REMOVE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
+                            #
+                            #     elif existing_aco.removed and not new_aco.get('removed'):
+                            #         # When restore removed alleged committed offence again
+                            #         existing = AllegedCommittedOffence.objects.filter(sanction_outcome=instance,
+                            #                                                           alleged_offence=existing_aco.alleged_offence,
+                            #                                                           included=True,
+                            #                                                           removed=False)
+                            #         if not existing:
+                            #             # There are no active same alleged offences
+                            #             serializer = AllegedCommittedOffenceCreateSerializer(data={'sanction_outcome_id': instance.id, 'alleged_offence_id': existing_aco.alleged_offence.id,})
+                            #             serializer.is_valid(raise_exception=True)
+                            #             serializer.save()
+                            #             instance.log_user_action(SanctionOutcomeUserAction.ACTION_RESTORE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
+                            #
+                            # elif not existing_aco.included and new_aco.get('included'):
+                            #     # when new alleged committed offence is going to be included
+                            #     serializer = AllegedCommittedOffenceSerializer(existing_aco, data={'included': True})
+                            #     serializer.is_valid(raise_exception=True)
+                            #     serializer.save()
+                            #     instance.log_user_action(SanctionOutcomeUserAction.ACTION_INCLUDE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
 
-                                elif existing_aco.removed and not new_aco.get('removed'):
-                                    # When restore removed alleged committed offence again
-                                    existing = AllegedCommittedOffence.objects.filter(sanction_outcome=instance,
-                                                                                      alleged_offence=existing_aco.alleged_offence,
-                                                                                      included=True,
-                                                                                      removed=False)
-                                    if not existing:
-                                        # There are no active same alleged offences
-                                        serializer = AllegedCommittedOffenceCreateSerializer(data={'sanction_outcome_id': instance.id, 'alleged_offence_id': existing_aco.alleged_offence.id,})
-                                        serializer.is_valid(raise_exception=True)
-                                        serializer.save()
-                                        instance.log_user_action(SanctionOutcomeUserAction.ACTION_RESTORE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
-
-                            elif not existing_aco.included and new_aco.get('included'):
-                                # when new alleged committed offence is going to be included
-                                serializer = AllegedCommittedOffenceSerializer(existing_aco, data={'included': True})
-                                serializer.is_valid(raise_exception=True)
-                                serializer.save()
-                                instance.log_user_action(SanctionOutcomeUserAction.ACTION_INCLUDE_ALLEGED_COMMITTED_OFFENCE.format(existing_aco.alleged_offence), request)
+                instance.log_user_action(SanctionOutcomeUserAction.ACTION_SAVE.format(instance), request)
 
                 # Save remediation action, and link to the sanction outcome
 
                 # Return
                 return self.retrieve(request)
+                # headers = self.get_success_headers(serializer.data)
+                # return_serializer = SanctionOutcomeSerializer(instance, context={'request': request})
+                # return Response(
+                #     return_serializer.data,
+                #     status=status.HTTP_200_OK,
+                #     headers=headers
+                # )
 
         except serializers.ValidationError:
             print(traceback.print_exc())
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
@@ -386,22 +497,44 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
                     group = groups.first()
                 request_data['allocated_group_id'] = group.id
 
+                # Count number of files uploaded
+                num_of_documents = 0
+                temporary_document_collection_id = request.data.get('temporary_document_collection_id')
+                if temporary_document_collection_id:
+                    temp_doc_collection, created = TemporaryDocumentCollection.objects.get_or_create(
+                        id=temporary_document_collection_id)
+                    if temp_doc_collection:
+                        num_of_documents = temp_doc_collection.documents.count()
+                # request_data['num_of_documents_attached'] = num_of_documents  # Pass number of files attached for validation
+                                                                              # You can access this data by self.initial_data['num_of_documents_attached'] in validate(self, data) method
+
                 # Save sanction outcome (offence, offender, alleged_offences)
                 if hasattr(request_data, 'id') and request_data['id']:
                     instance = SanctionOutcome.objects.get(id=request_data['id'])
-                    serializer = SaveSanctionOutcomeSerializer(instance, data=request_data, partial=True)
+                    serializer = SaveSanctionOutcomeSerializer(instance, data=request_data, partial=True, context={'num_of_documents_attached': num_of_documents})
                 else:
-                    serializer = SaveSanctionOutcomeSerializer(data=request_data, partial=True)
+                    serializer = SaveSanctionOutcomeSerializer(data=request_data, partial=True, context={'num_of_documents_attached': num_of_documents})
                 serializer.is_valid(raise_exception=True)
                 instance = serializer.save()
 
+                # Link temp uploaded files to the sanction outcome
+                if num_of_documents:
+                    for doc in temp_doc_collection.documents.all():
+                        save_default_document_obj(instance, doc)
+                    temp_doc_collection.delete()
+
                 # Create relations between this sanction outcome and the alleged offence(s)
+                count_alleged_offences = 0
                 for id in request_data['alleged_offence_ids_included']:
                     try:
                         alleged_offence = AllegedOffence.objects.get(id=id)
                         alleged_commited_offence = AllegedCommittedOffence.objects.create(sanction_outcome=instance, alleged_offence=alleged_offence, included=True)
+                        count_alleged_offences += 1
                     except:
                         pass  # Should not reach here
+
+                if count_alleged_offences == 0:
+                    raise serializers.ValidationError(['No alleged offences selected.'])
 
                 for id in request_data['alleged_offence_ids_excluded']:
                     try:
@@ -462,7 +595,10 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
@@ -518,7 +654,10 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
@@ -582,16 +721,20 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
                         pass
                 elif workflow_type == SanctionOutcome.WORKFLOW_ENDORSE:
                     instance.endorse(request)
-                    # Email to infringement-notice-coordinator
-                    email_data = prepare_mail(request, instance, workflow_entry, send_mail, )
+
+                    email_data = prepare_mail(request, instance, workflow_entry, send_infringement_notice, instance.offender.person.id)
+                    # TODO: Email to infringement-notice-coordinator too
+
                 elif workflow_type == SanctionOutcome.WORKFLOW_RETURN_TO_OFFICER:
                     instance.return_to_officer(request)
                     # Email to the responsible officer
                     email_data = prepare_mail(request, instance, workflow_entry, send_mail, instance.responsible_officer.id)
-                elif workflow_type == SanctionOutcome.WORKFLOW_WITHDRAW:
-                    # Only infringement notice coordinator can withdraw
-                    instance.withdraw(request)
-                    # No need to email
+                elif workflow_type == SanctionOutcome.WORKFLOW_WITHDRAW_BY_INC:
+                    #  withdraw by Infringement notice coordinator
+                    instance.withdraw_by_inc(request)
+                elif workflow_type == SanctionOutcome.WORKFLOW_WITHDRAW_BY_MANAGER:
+                    #  withdraw by manager
+                    instance.withdraw_by_manager(request)
                 else:
                     # Should not reach here
                     # instance.save()
@@ -615,7 +758,10 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))
@@ -655,7 +801,10 @@ class SanctionOutcomeViewSet(viewsets.ModelViewSet):
             raise
         except ValidationError as e:
             print(traceback.print_exc())
-            raise serializers.ValidationError(repr(e.error_dict))
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
         except Exception as e:
             print(traceback.print_exc())
             raise serializers.ValidationError(str(e))

@@ -7,17 +7,17 @@ from rest_framework.renderers import JSONRenderer
 from wildlifecompliance.components.main.utils import (
     search_keywords,
     search_reference,
-    search_weak_links,
 )
 from wildlifecompliance.components.main.serializers import (
     SearchKeywordSerializer,
     SearchReferenceSerializer,
 )
-from wildlifecompliance.components.main.related_item import RelatedItemsSerializer
-from wildlifecompliance.components.main.related_item import WeakLinks
 from wildlifecompliance.components.main.related_item import (
-       get_related_items, 
-       format_model_name
+        RelatedItemsSerializer,
+        WeakLinks,
+        get_related_items, 
+        format_model_name,
+        search_weak_links
        )
 from django.contrib.auth.models import ContentType
 

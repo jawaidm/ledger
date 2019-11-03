@@ -42,7 +42,7 @@ export default {
     components:{
         ApplicationDashTable,
         LicenceDashTable,
-        ReturnDashTable
+        ReturnDashTable,
     },
     watch: {},
     computed: {

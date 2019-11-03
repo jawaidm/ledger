@@ -22,7 +22,7 @@ from rest_framework.pagination import PageNumberPagination
 from datetime import datetime, timedelta
 from collections import OrderedDict
 from django.core.cache import cache
-from ledger.accounts.models import EmailUser, OrganisationAddress
+from ledger.accounts.models import EmailUser, OrganisationAddress, Organisation as ledger_organisation
 from ledger.address.models import Country
 from datetime import datetime, timedelta, date
 from wildlifecompliance.helpers import is_customer, is_internal
@@ -54,6 +54,11 @@ from wildlifecompliance.components.organisations.serializers import (
     OrgUserAcceptSerializer,
     MyOrganisationsSerializer,
     OrganisationCheckExistSerializer,
+    ComplianceManagementSaveOrganisationSerializer,
+    ComplianceManagementOrganisationSerializer,
+    ComplianceManagementCreateLedgerOrganisationSerializer,
+    ComplianceManagementUpdateLedgerOrganisationSerializer,
+    ComplianceManagementSaveOrganisationAddressSerializer,
 )
 from wildlifecompliance.components.applications.serializers import (
     BaseApplicationSerializer,
@@ -999,70 +1004,122 @@ class MyOrganisationsViewSet(viewsets.ModelViewSet):
 
 class OrganisationComplianceManagementViewSet(viewsets.ModelViewSet):
     queryset = Organisation.objects.all()
-    serializer_class = OrganisationSerializer
+    serializer_class = ComplianceManagementOrganisationSerializer
     
     def create(self, request, *args, **kwargs):
-            try:
-                serializer = self.get_serializer(data=request.data)
-                serializer.is_valid(raise_exception=True)
-                #serializer.validated_data['requester'] = request.user
-                with transaction.atomic():
-                    # Check if consultant can be relinked to org.
-                    data = Organisation.existance(request.data['abn'])
-                    print("data type")
-                    print(type(data))
-                    print(data)
-                    data.update([('user', request.user.id)])
-                    data.update([('abn', request.data['abn'])])
-                    existing_org = OrganisationCheckExistSerializer(data=data)
-                    existing_org.is_valid(raise_exception=True)
-                    if existing_org.is_valid:
-                        print("existing org")
-                        print(existing_org.data)
-                        
-                        serializer.save()
-                return Response(serializer.data)
-            except serializers.ValidationError:
-                print(traceback.print_exc())
-                raise
-            except ValidationError as e:
-                print(traceback.print_exc())
-                raise serializers.ValidationError(repr(e.error_dict))
-            except Exception as e:
-                print(traceback.print_exc())
-                raise serializers.ValidationError(str(e))
+        print("create org")
+        print(request.data)
+        try:
+            with transaction.atomic():
+                abn = request.data.get('abn')
+                address = request.data.get('address')
+                ledger_org = None
+                wc_org = None
 
-    def save_address(address_request_data, instance, *args, **kwargs):
-        ledger_instance = instance.organisation
-        serializer = OrganisationAddressSerializer(data=address_request_data)
-        serializer.is_valid(raise_exception=True)
-        address, created = OrganisationAddress.objects.get_or_create(
-            line1=serializer.validated_data['line1'],
-            locality=serializer.validated_data['locality'],
-            state=serializer.validated_data['state'],
-            country=serializer.validated_data['country'],
-            postcode=serializer.validated_data['postcode'],
-            organisation=ledger_instance
-        )
-        instance.postal_address = address
-        instance.save()
+                if not abn:
+                    return Response({'message': 'ABN must be specified'}, status=status.HTTP_400_BAD_REQUEST)
+                ledger_org_list = ledger_organisation.objects.filter(abn=abn)
+                if ledger_org_list:
+                    ledger_org = ledger_org_list[0]
+                if ledger_org:
+                    wc_org_list = Organisation.objects.filter(organisation=ledger_org)
+                    if wc_org_list:
+                        wc_org = wc_org_list[0]
+                        return Response({'message': 'WC org already exists'}, status=status.HTTP_400_BAD_REQUEST)
+                if address:
+                    if ledger_org and ledger_org_address:
+                        print("existing address")
+                        ledger_org_address = ledger_org.adresses.first()
+                        address_serializer = ComplianceManagementSaveOrganisationAddressSerializer(
+                                instance=ledger_org_address, 
+                                data=address)
+                    else:
+                        print("no existing address")
+                        address_serializer = ComplianceManagementSaveOrganisationAddressSerializer(
+                                data=address)
+                    address_serializer.is_valid(raise_exception=True)
+                    if address_serializer.is_valid:
+                        saved_address = address_serializer.save()
+                        print("address saved") 
+                # WC only cares about the postal address
+                saved_address = update_or_create_postal_address(address, ledger_org)
+                ledger_org_data = {'name': request.data.get('name'),
+                        'abn': request.data.get('abn'),
+                        'postal_address_id': saved_address.id
+                        }
+                if ledger_org:
+                    # update existing ledger_org
+                    ledger_serializer = ComplianceManagementUpdateLedgerOrganisationSerializer(instance=ledger_org.id, data=ledger_org_data)
+                else:
+                    # create ledger_org if it doesn't exist
+                    ledger_serializer = ComplianceManagementCreateLedgerOrganisationSerializer(data=ledger_org_data)
+                ledger_serializer.is_valid(raise_exception=True)
+                if ledger_serializer.is_valid:
+                    ledger_org = ledger_serializer.save()
+                    org_serializer = ComplianceManagementSaveOrganisationSerializer(data={'organisation_id': ledger_org.id})
+                    org_serializer.is_valid(raise_exception=True)
+                    if org_serializer.is_valid:
+                        org_serializer.save()
+                        # return serialized data for all objects
+                        content = {'ledger_org': ledger_serializer.data, 
+                                    'wc_org': org_serializer.data,
+                                    'ledger_address': address_serializer.data
+                                    }
+                        return Response(content, status=status.HTTP_201_CREATED)
 
-        #    address_instance = OrganisationAddress.objects.get(id=address_request_data.get('id'))
-        #    address_serializer = OrganisationAddressSerializer(
-        #        instance=address_instance,
-        #        data=address_request_data,
-        #        partial=True
-        #    )
-        #    address_serializer.is_valid(raise_exception=True)
-        #    if address_serializer.is_valid():
-        #        address_serializer.save()
-        #else:
-        #    address_serializer = OrganisationAddressSerializer(
-        #        data=address_request_data,
-        #        partial=True
-        #    )
-        #    address_serializer.is_valid(raise_exception=True)
-        #    if address_serializer.is_valid():
-        #        address_instance = address_serializer.save()
-        #return address_serializer.data
+            return Response({'message': 'No org created'}, status=status.HTTP_400_BAD_REQUEST)
+        except serializers.ValidationError:
+            print(traceback.print_exc())
+            raise
+        except ValidationError as e:
+            print(traceback.print_exc())
+            raise serializers.ValidationError(repr(e.error_dict))
+        except Exception as e:
+            print(traceback.print_exc())
+            raise serializers.ValidationError(str(e))
 
+    @detail_route(methods=['POST', ])
+    def update_postal_address(self, request, *args, **kwargs):
+        print("create org")
+        print(request.data)
+        try:
+            instance = self.get_object()
+            postal_address = instance.organisation.postal_address
+            address = request.data.get('address')
+            if address:
+                address_serializer = ComplianceManagementSaveOrganisationAddressSerializer(
+                        instance=ledger_org_address, 
+                        data=address)
+                address_serializer.is_valid(raise_exception=True)
+                if address_serializer.is_valid:
+                    saved_address = address_serializer.save()
+                    print("address saved") 
+                    return Response(address_serializer.data, status=status.HTTP_201_CREATED)
+
+        except serializers.ValidationError:
+            print(traceback.print_exc())
+            raise
+        except ValidationError as e:
+            print(traceback.print_exc())
+            raise serializers.ValidationError(repr(e.error_dict))
+        except Exception as e:
+            print(traceback.print_exc())
+            raise serializers.ValidationError(str(e))
+
+    #def update_or_create_postal_address(address, ledger_org=None):
+    #    if ledger_org and ledger_org.postal_address:
+    #        print("existing address")
+    #        #ledger_org_address = ledger_org.adresses.first()
+    #        address_serializer = ComplianceManagementSaveOrganisationAddressSerializer(
+    #                instance=ledger_org.postal_address, 
+    #                data=address)
+    #    else:
+    #        print("no existing address")
+    #        address_serializer = ComplianceManagementSaveOrganisationAddressSerializer(
+    #                data=address)
+
+    #    address_serializer.is_valid(raise_exception=True)
+    #    if address_serializer.is_valid:
+    #        saved_address = address_serializer.save()
+    #        print("address saved")
+    #    return saved_address

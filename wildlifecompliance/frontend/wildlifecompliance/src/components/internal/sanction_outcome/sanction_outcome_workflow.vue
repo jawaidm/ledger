@@ -23,6 +23,21 @@
                     </div></div>
 
                 </div>
+
+            </div>
+            <div slot="footer">
+                <div v-if="errorResponse" class="form-group">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <strong>
+                                <span style="white-space: pre;" v-html="errorResponse"></span>
+                            </strong>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" v-if="processingDetails" disabled class="btn btn-default" @click="ok"><i class="fa fa-spinner fa-spin"></i> Adding</button>
+                <button type="button" v-else class="btn btn-default" @click="ok">Ok</button>
+                <button type="button" class="btn btn-default" @click="cancel">Cancel</button>
             </div>
         </modal>
     </div>
@@ -41,6 +56,7 @@ export default {
     name: "SanctionOutcomeWorkflow",
     data: function() {
         return {
+            processingDetails: false,
             isModalOpen: false,
             files: [
                     {
@@ -71,7 +87,10 @@ export default {
         }),
         modalTitle: function() {
             switch(this.workflow_type){
-                case 'withdraw':
+                case 'withdraw_by_manager':
+                    return "Withdraw";
+                    break;
+                case 'withdraw_by_inc':
                     return "Withdraw";
                     break;
                 case 'send_to_manager':
@@ -126,12 +145,41 @@ export default {
             loadAllocatedGroup: 'loadAllocatedGroup',  // defined in store/modules/user.js
         }),
         ok: async function () {
-            // await this.updateAllocatedGroup();
-            const response = await this.sendData();
-            if (response.ok) {
+            try {
+                this.processingDetails = true;
+                const response = await this.sendData();
                 this.close();
                 this.$router.push({ name: 'internal-sanction-outcome-dash' });
+            } catch (err){
+                this.processError(err);
+            } finally {
+                this.processingDetails = false;
             }
+        },
+        processError: async function(err) {
+            let errorText = '';
+            if (err.body.non_field_errors) {
+                // When non field errors raised
+                for (let i=0; i<err.body.non_field_errors.length; i++){
+                    errorText += err.body.non_field_errors[i] + '<br />';
+                }
+            } else if(Array.isArray(err.body)) {
+                // When general errors raised
+                for (let i=0; i<err.body.length; i++){
+                    errorText += err.body[i] + '<br />';
+                }
+            } else {
+                // When field errors raised
+                for (let field_name in err.body){
+                    if (err.body.hasOwnProperty(field_name)){
+                        errorText += field_name + ':<br />';
+                        for (let j=0; j<err.body[field_name].length; j++){
+                            errorText += err.body[field_name][j] + '<br />';
+                        }
+                    }
+                }
+            }
+            this.errorResponse = errorText;
         },
         cancel: async function() {
             await this.$refs.comms_log_file.cancel();
@@ -150,55 +198,15 @@ export default {
             }
             this.attachAnother();
         },
-        // updateAllocatedGroup: async function() {
-        //     console.log('updateAllocatedGroup');
-
-        //     this.errorResponse = "";
-        //     if (this.groupPermission === 'infringement_notice_coordinator') {
-        //         // let allocatedGroupResponse = ...new api endpoint
-
-        //     } else if (this.regionDistrictId) {
-        //         let allocatedGroupResponse = await this.loadAllocatedGroup({
-        //             region_district_id: this.regionDistrictId,
-        //             group_permission: this.groupPermission,
-        //         });
-        //     }
-        //     if (allocatedGroupResponse.ok) {
-        //         Vue.set(this, 'allocatedGroup', allocatedGroupResponse.body.allocated_group);
-        //         this.allocated_group_id = allocatedGroupResponse.body.group_id;
-        //         console.log('allocated_troup_id:');
-        //         console.log(this.allocated_troup_id);
-        //     } else {
-        //         // Display http error response on modal
-        //         this.errorResponse = allocatedGroupResponse.statusText;
-        //     }
-        //     // Display empty group error on modal
-        //     if (!this.errorResponse &&
-        //         this.allocatedGroup &&
-        //         this.allocatedGroup.length <= 1) {
-        //         this.errorResponse = 'This group has no members';
-        //     }
-        // },
         sendData: async function () {
             let post_url = '/api/sanction_outcome/' + this.sanction_outcome.id + '/workflow_action/'
             let payload = new FormData();
             payload.append('details', this.workflowDetails);
             this.$refs.comms_log_file.commsLogId ? payload.append('comms_log_id', this.$refs.comms_log_file.commsLogId) : null;
             this.workflow_type ? payload.append('workflow_type', this.workflow_type) : null;
-            // payload.append('allocated_group_id', this.allocated_group_id);
 
-            console.log('payload');
-            console.log(payload);
-
-            try {
-                let res = await Vue.http.post(post_url, payload);
-                console.log(res);
-                if (res.ok) {
-                    return res
-                }
-            } catch(err) {
-                    this.errorResponse = err.statusText;
-            }
+            let res = await Vue.http.post(post_url, payload);
+            return res
         },
         uploadFile(target,file_obj){
             let vm = this;

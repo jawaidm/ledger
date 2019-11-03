@@ -4,6 +4,7 @@ from rest_framework.fields import CharField
 from rest_framework_gis.serializers import GeoFeatureModelSerializer, GeometryField
 
 from ledger.accounts.models import EmailUser, Address
+from wildlifecompliance.components.call_email.serializers import LocationSerializer, LocationSerializerOptimized
 from wildlifecompliance.components.inspection.models import (
     Inspection,
     InspectionUserAction,
@@ -128,6 +129,7 @@ class InspectionFormDataRecordSerializer(serializers.ModelSerializer):
 
 class InspectionSerializer(serializers.ModelSerializer):
     allocated_group = serializers.SerializerMethodField()
+    inspection_team = serializers.SerializerMethodField()
     all_officers = serializers.SerializerMethodField()
     user_in_group = serializers.SerializerMethodField()
     can_user_action = serializers.SerializerMethodField()
@@ -140,6 +142,7 @@ class InspectionSerializer(serializers.ModelSerializer):
     related_items = serializers.SerializerMethodField()
     inspection_report = serializers.SerializerMethodField()
     data = InspectionFormDataRecordSerializer(many=True)
+    location = LocationSerializer(read_only=True)
 
     class Meta:
         model = Inspection
@@ -159,7 +162,7 @@ class InspectionSerializer(serializers.ModelSerializer):
                 'can_user_action',
                 'user_is_assignee',
                 'inspection_type_id',
-                #inspection_team',
+                'inspection_team',
                 'inspection_team_lead_id',
                 'individual_inspected',
                 'organisation_inspected',
@@ -168,12 +171,14 @@ class InspectionSerializer(serializers.ModelSerializer):
                 'related_items',
                 'inform_party_being_inspected',
                 'call_email_id',
+                'legal_case_id',
                 'inspection_report',
                 'schema',
                 'region_id',
                 'district_id',
                 'data',
                 'all_officers',
+                'location',
                 )
         read_only_fields = (
                 'id',
@@ -183,33 +188,61 @@ class InspectionSerializer(serializers.ModelSerializer):
         return get_related_items(obj)
 
     def get_user_in_group(self, obj):
+        return_val = False
         user_id = self.context.get('request', {}).user.id
-
-        if obj.allocated_group:
+        # inspection team should apply if status is 'open'
+        if obj.status == 'open' and obj.inspection_team:
+            for member in obj.inspection_team.all():
+                if user_id == member.id:
+                    return_val = True
+        elif obj.allocated_group:
            for member in obj.allocated_group.members:
                if user_id == member.id:
-                  return True
-        
-        return False
+                  return_val = True
+        return return_val
 
     def get_can_user_action(self, obj):
+        return_val = False
         user_id = self.context.get('request', {}).user.id
 
         if user_id == obj.assigned_to_id:
-            return True
+            return_val = True
+        if obj.status == 'open' and obj.inspection_team and not obj.assigned_to_id:
+            for member in obj.inspection_team.all():
+                if user_id == member.id:
+                    return_val = True
         elif obj.allocated_group and not obj.assigned_to_id:
            for member in obj.allocated_group.members:
                if user_id == member.id:
-                  return True
-        
-        return False
+                  return_val = True
+        return return_val
 
     def get_user_is_assignee(self, obj):
+        return_val = False
         user_id = self.context.get('request', {}).user.id
         if user_id == obj.assigned_to_id:
-            return True
+            return_val = True
 
-        return False
+        return return_val
+
+    def get_inspection_team(self, obj):
+        team = [{
+            'id': None,
+            'full_name': '',
+            'member_role': '',
+            'action': ''
+            }]
+
+        returned_inspection_team = EmailUserSerializer(
+                obj.inspection_team.all(), 
+                context={
+                     'inspection_team_lead_id': obj.inspection_team_lead_id
+                },
+                many=True
+                )
+        for member in returned_inspection_team.data:
+            team.append(member)
+        return team
 
     def get_allocated_group(self, obj):
         allocated_group = [{
@@ -266,7 +299,11 @@ class SaveInspectionSerializer(serializers.ModelSerializer):
         required=False, write_only=True, allow_null=True)
     call_email_id = serializers.IntegerField(
         required=False, write_only=True, allow_null=True)
-    
+    legal_case_id = serializers.IntegerField(
+        required=False, write_only=True, allow_null=True)
+    location_id = serializers.IntegerField(
+        required=False, write_only=True, allow_null=True)
+
     class Meta:
         model = Inspection
         fields = (
@@ -283,6 +320,8 @@ class SaveInspectionSerializer(serializers.ModelSerializer):
                 'organisation_inspected_id',
                 'inform_party_being_inspected',
                 'call_email_id',
+                'legal_case_id',
+                'location_id',
                 )
         read_only_fields = (
                 'id',
@@ -319,6 +358,20 @@ class InspectionCommsLogEntrySerializer(CommunicationLogEntrySerializer):
         return [[d.name, d._file.url] for d in obj.documents.all()]
 
 
+class InspectionOptimisedSerializer(serializers.ModelSerializer):
+    location = LocationSerializerOptimized()
+
+    class Meta:
+        model = Inspection
+        fields = (
+            'id',
+            'status',
+            'location',
+            'number',
+        )
+        read_only_fields = ('id', )
+
+
 class InspectionDatatableSerializer(serializers.ModelSerializer):
     user_action = serializers.SerializerMethodField()
     inspection_type = InspectionTypeSerializer()
@@ -351,6 +404,10 @@ class InspectionDatatableSerializer(serializers.ModelSerializer):
             returned_url = view_url
         elif user_id == obj.assigned_to_id:
             returned_url = process_url
+        if obj.status == 'open' and obj.inspection_team and not obj.assigned_to_id:
+            for member in obj.inspection_team.all():
+                if user_id == member.id:
+                    returned_url = process_url
         elif (obj.allocated_group
                 and not obj.assigned_to_id):
             for member in obj.allocated_group.members:

@@ -8,7 +8,7 @@
         <div class="col-sm-12 form-group"><div class="row">
             <div class="col-sm-12">
             <!--WeakLinks @weak-link-selected="createWeakLink"/-->
-                <WeakLinks ref="weak_links_lookup" :readonlyForm="readonlyForm"/>
+                <WeakLinks ref="weak_links_lookup" :readonlyForm="readonlyForm" :displayedEntityType="displayedEntityType" :displayedEntityId="displayedEntityId"/>
             </div>
         </div></div>
     </div>
@@ -109,22 +109,37 @@ export default {
     ...mapGetters('sanctionOutcomeStore', {
       sanction_outcome: "sanction_outcome",
     }),
+    ...mapGetters('legalCaseStore', {
+      legal_case: "legal_case",
+    }),
     csrf_token: function() {
       return helpers.getCookie("csrftoken");
     },
     displayedEntity: function() {
+        let displayed_entity = null;
         if (this.call_email && this.call_email.id) {
             this.displayedEntityType = 'callemail';
-            return this.call_email;
+            displayed_entity = this.call_email;
         } else if (this.inspection && this.inspection.id) {
             this.displayedEntityType = 'inspection';
-            return this.inspection;
+            displayed_entity = this.inspection;
         } else if (this.offence && this.offence.id) {
             this.displayedEntityType = 'offence';
-            return this.offence;
+            displayed_entity = this.offence;
         } else if (this.sanction_outcome && this.sanction_outcome.id) {
             this.displayedEntityType = 'sanctionoutcome';
-            return this.sanction_outcome;
+            displayed_entity = this.sanction_outcome;
+        } else if (this.legal_case && this.legal_case.id) {
+            this.displayedEntityType = 'legalcase';
+            displayed_entity = this.legal_case;
+        }
+        return displayed_entity;
+    },
+    displayedEntityId: function() {
+        if (this.displayedEntity) {
+            return this.displayedEntity.id;
+        } else {
+            return null;
         }
     },
 

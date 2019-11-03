@@ -34,6 +34,7 @@
                             :component="removeLabel(header)"
                             :json_data="value"
                             :instance="table"
+                            :readonlyForm="readonly"
                             v-bind:key="`expander_header_contents_${component.name}_${index}`"
                             />
                         </span>
@@ -48,6 +49,7 @@
                             :component="subcomponent"
                             :json_data="value"
                             :instance="table"
+                            :readonlyForm="readonly"
                             v-bind:key="`expander_contents_${component.name}_${index}`"
                             />
                     </div>

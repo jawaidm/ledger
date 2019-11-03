@@ -16,13 +16,51 @@ export const inspectionStore = {
     },
     getters: {
         inspection: state => state.inspection,
-        
+        inspection_latitude(state) {
+            if (state.inspection.location) {
+                if (state.inspection.location.geometry) {
+                    if (state.inspection.location.geometry.coordinates.length > 0) {
+                        return state.inspection.location.geometry.coordinates[1];
+                    } else {return "";}
+                } else {return "";}
+            } else {return "";}
+        },
+        inspection_longitude(state) {
+            if (state.inspection.location) {
+                if (state.inspection.location.geometry) {
+                    if (state.inspection.location.geometry.coordinates.length > 0) {
+                        return state.inspection.location.geometry.coordinates[0];
+                    } else {return "";}
+                } else {return "";}
+            } else {return "";}
+        },
     },
     mutations: {
         updateInspection(state, inspection) {
             Vue.set(state, 'inspection', {
                 ...inspection
             });
+            console.log('updateInspection');
+            if (!inspection.location) {
+                /* When location is null, set default object */
+                Vue.set(state.inspection, 'location', 
+                    {
+                        "type": "Feature",
+                        properties: {
+                            town_suburb: null,
+                            street: null,
+                            state: null,
+                            postcode: null,
+                            country: null,
+                        },
+                        id: null,
+                        geometry: {
+                            "type": "Point",
+                            "coordinates": [],
+                        },
+                    }
+                ); 
+            }
             if (state.inspection.planned_for_date) {
                 state.inspection.planned_for_date = moment(state.inspection.planned_for_date, 'YYYY-MM-DD').format('DD/MM/YYYY');
             }
@@ -52,12 +90,14 @@ export const inspectionStore = {
         },
         updatePartyInspected(state, data) {
             if (data.data_type === 'individual') {
+                Vue.set(state.inspection, 'party_inspected', data.data_type);
                 Vue.set(state.inspection, 'individual_inspected_id', data.id);
                 if (state.inspection.organisation_inspected_id) {
                     state.inspection.organisation_inspected_id = null;
                 }
             }
             if (data.data_type === 'organisation') {
+                Vue.set(state.inspection, 'party_inspected', data.data_type);
                 Vue.set(state.inspection, 'organisation_inspected_id', data.id);
                 if (state.inspection.individual_inspected_id) {
                     state.inspection.individual_inspected_id = null;
@@ -67,7 +107,22 @@ export const inspectionStore = {
         updateRelatedItems(state, related_items) {
             Vue.set(state.inspection, 'related_items', related_items);
         },
-        
+        updateLocationPoint(state, point) {
+            state.inspection.location.geometry.coordinates = point;
+        },
+        updateLocationAddress(state, location_properties) {
+            state.inspection.location.properties = location_properties;
+        },
+        updateLocationAddressEmpty(state) {
+            state.inspection.location.properties.town_suburb = "";
+            state.inspection.location.properties.street = "";
+            state.inspection.location.properties.state = "";
+            state.inspection.location.properties.postcode = "";
+            state.inspection.location.properties.country = "";
+        },
+        updateLocationDetailsFieldEmpty(state) {
+            state.inspection.location.properties.details = "";
+        },
     },
     actions: {
         async loadInspection({ dispatch, commit }, { inspection_id }) {
@@ -80,7 +135,7 @@ export const inspectionStore = {
 
                 /* Set Inspection object */
                 //await dispatch("setInspection", returnedInspection.body);
-                commit("updateInspection", returnedInspection.body);
+                await dispatch("setInspection", returnedInspection.body);
 
                 for (let form_data_record of returnedInspection.body.data) {
                     await dispatch("setFormValue", {
@@ -148,7 +203,7 @@ export const inspectionStore = {
                         //state.inspection.id + "/inspection_save/"
                         state.inspection.id + '/'
                         )
-                        savedInspection = await Vue.http.put(fetchUrl, payload);
+                    savedInspection = await Vue.http.put(fetchUrl, payload);
                 }
                 await dispatch("setInspection", savedInspection.body);
                 inspectionId = savedInspection.body.id;
@@ -161,17 +216,18 @@ export const inspectionStore = {
                 } else {
                     await swal("Error", "There was an error saving the record", "error");
                 }
-                return window.location.href = "/internal/inspection/";
+                //return window.location.href = "/internal/inspection/";
+                //console.log(savedInspection);
             }
             // internal arg used when file upload triggers record creation
             if (internal) {
                 console.log("modal file create")
-                return savedInspection;
             }
             // update inspection
             else if (!create) {
                 await swal("Saved", "The record has been saved", "success");
             }
+            return savedInspection;
         },
         
         setInspection({ commit, }, inspection) {

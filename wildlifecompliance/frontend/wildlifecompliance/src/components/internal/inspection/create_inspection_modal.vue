@@ -78,7 +78,12 @@
                                     <label class="control-label pull-left"  for="Name">Attachments</label>
                                 </div>
             			        <div class="col-sm-9">
-                                    <filefield ref="comms_log_file" name="comms-log-file" :isRepeatable="true" :documentActionUrl="inspection.createInspectionProcessCommsLogsDocumentUrl" @create-parent="createDocumentActionUrl"/>
+                                    <filefield 
+                                    ref="comms_log_file" 
+                                    name="comms-log-file" 
+                                    :isRepeatable="true" 
+                                    documentActionUrl="temporary_document" 
+                                    @update-temp-doc-coll-id="setTemporaryDocumentCollectionId"/>
                                 </div>
                             </div>
                         </div>
@@ -135,6 +140,7 @@ export default {
             allocatedGroup: [],
             allocated_group_id: null,
             documentActionUrl: '',
+            temporary_document_collection_id: null,
       }
     },
     components: {
@@ -152,12 +158,6 @@ export default {
             required,
         },
     },
-    // props:{
-    //       workflow_type: {
-    //           type: String,
-    //           default: '',
-    //       },
-    // },
     computed: {
       ...mapGetters('inspectionStore', {
         inspection: "inspection",
@@ -165,6 +165,14 @@ export default {
       ...mapGetters('callemailStore', {
         call_email: "call_email",
       }),
+      ...mapGetters('legalCaseStore', {
+        legal_case: "legal_case",
+      }),
+      parent_legal_case: function() {
+          if (this.legal_case && this.legal_case.id) {
+              return true;
+          }
+      },
       parent_call_email: function() {
           if (this.call_email && this.call_email.id) {
               return true;
@@ -195,6 +203,12 @@ export default {
       ...mapActions('callemailStore', {
           loadCallEmail: 'loadCallEmail',
       }),
+      ...mapActions('legalCaseStore', {
+          loadLegalCase: 'loadLegalCase',
+      }),
+      setTemporaryDocumentCollectionId: function(val) {
+          this.temporary_document_collection_id = val;
+      },
       updateDistricts: function() {
         // this.district_id = null;
         this.availableDistricts = [];
@@ -231,7 +245,6 @@ export default {
               });
               if (allocatedGroupResponse.ok) {
                   console.log(allocatedGroupResponse.body.allocated_group);
-                  //this.allocatedGroup = Object.assign({}, allocatedGroupResponse.body.allocated_group);
                   Vue.set(this, 'allocatedGroup', allocatedGroupResponse.body.allocated_group);
                   this.allocated_group_id = allocatedGroupResponse.body.group_id;
               } else {
@@ -259,11 +272,15 @@ export default {
                   if (this.$parent.$refs.inspection_table) {
                       this.$parent.$refs.inspection_table.vmDataTable.ajax.reload()
                   }
-                  // For CallEmail related items table
+                  // For related items table
+                  let parent_update_function_payload = null;
                   if (this.parent_call_email) {
-                      //await this.parent_update_function({
                       await this.loadCallEmail({
                           call_email_id: this.call_email.id,
+                      });
+                  } else if (this.parent_legal_case) {
+                      await this.loadLegalCase({
+                          legal_case_id: this.legal_case.id,
                       });
                   }
                   if (this.$parent.$refs.related_items_table) {
@@ -314,11 +331,14 @@ export default {
           payload.append('details', this.inspectionDetails);
           this.$refs.comms_log_file.commsLogId ? payload.append('inspection_comms_log_id', this.$refs.comms_log_file.commsLogId) : null;
           this.parent_call_email ? payload.append('call_email_id', this.call_email.id) : null;
+          this.parent_legal_case ? payload.append('legal_case_id', this.legal_case.id) : null;
           this.district_id ? payload.append('district_id', this.district_id) : null;
           this.assigned_to_id ? payload.append('assigned_to_id', this.assigned_to_id) : null;
           this.inspection_type_id ? payload.append('inspection_type_id', this.inspection_type_id) : null;
           this.region_id ? payload.append('region_id', this.region_id) : null;
           this.allocated_group_id ? payload.append('allocated_group_id', this.allocated_group_id) : null;
+          this.temporary_document_collection_id ? payload.append('temporary_document_collection_id', this.temporary_document_collection_id) : null;
+
           //this.workflow_type ? payload.append('workflow_type', this.workflow_type) : null;
           //!payload.has('allocated_group') ? payload.append('allocated_group', this.allocatedGroup) : null;
 

@@ -24,6 +24,32 @@
                             </div></div>
 
                             <div class="col-sm-12 form-group"><div class="row">
+                                <div class="col-sm-3">
+                                    <label class="control-label pull-left">Region</label>
+                                </div>
+                                <div class="col-sm-7">
+                                  <select class="form-control col-sm-9" v-on:change.prevent="offence.region_id=$event.target.value; updateDistricts('updatefromUI')" v-bind:value="offence.region_id">
+                                    <option  v-for="option in regions" :value="option.id" v-bind:key="option.id">
+                                      {{ option.display_name }} 
+                                    </option>
+                                  </select>
+                                </div>
+                            </div></div>
+
+                            <div class="col-sm-12 form-group"><div class="row">
+                                <div class="col-sm-3">
+                                    <label class="control-label pull-left">District</label>
+                                </div>
+                                <div class="col-sm-7">
+                                  <select class="form-control" v-model="offence.district_id">
+                                    <option  v-for="option in availableDistricts" :value="option.id" v-bind:key="option.id">
+                                      {{ option.display_name }} 
+                                    </option>
+                                  </select>
+                                </div>
+                            </div></div>
+
+                            <div class="col-sm-12 form-group"><div class="row">
                                 <label class="col-sm-3">Use occurrence from/to</label>
                                 <input class="col-sm-1" id="occurrence_from_to_true" type="radio" v-model="offence.occurrence_from_to" v-bind:value="true">
                                 <label class="col-sm-1 radio-button-label" for="occurrence_from_to_true">Yes</label>
@@ -113,40 +139,56 @@
                     </div>
 
                     <div :id="pTab" class="tab-pane fade in">
-                        <div class="row">
-                            <div class="col-sm-12 form-group"><div class="row">
+                        <div class="row"><div class="col-sm-12">
+
+                            <!--div class="col-sm-12 form-group"><div class="row">
                                 <input class="col-sm-1" id="offender_individual" type="radio" v-model="offender_search_type" value="individual">
                                 <label class="col-sm-1 radio-button-label" for="offender_individual">Individual</label>
                                 <input class="col-sm-1" id="offender_organisation" type="radio" v-model="offender_search_type" value="organisation">
                                 <label class="col-sm-1 radio-button-label" for="offender_organisation">Organisation</label>
-                            </div></div>
+                            </div></div-->
 
-                            <div class="col-sm-12 form-group"><div class="row">
-                                <label class="col-sm-2">Offender</label>
+                            <div class="form-group"><div class="row">
+                                    <div class="col-sm-12">
+                                        <strong><label>Offender</label></strong>
+                                    </div>
                                 <!-- <div class="col-sm-6">
                                     <input class="form-control" id="offender_input" />
                                 </div> -->
-                                <div class="col-sm-6">
-                                    <PersonSearch ref="person_search" elementId="idSetInParent" classNames="col-sm-5 form-control" @person-selected="personSelected" :search_type="offender_search_type" />
+                                <div>
+                                    <SearchPersonOrganisation 
+                                    :excludeStaff="true" 
+                                    classNames="form-control" 
+                                    @entity-selected="personSelected" 
+                                    showCreateUpdate
+                                    ref="search_offender"
+                                    domIdHelper="offender"
+                                    v-bind:key="updateSearchPersonOrganisationBindId"/>
+                                    <!--SearchPersonOrganisation ref="search" elementId="idSetInParent" classNames="col-sm-5 form-control" @person-selected="personSelected" :search_type="offender_search_type" /-->
                                 </div>
-                                <div class="col-sm-1">
+                                <!--div class="col-sm-1">
                                     <input type="button" class="btn btn-primary" value="Add" @click.prevent="addOffenderClicked()" />
                                 </div>
                                 <div class="col-sm-2">
                                     <input type="button" class="btn btn-primary" value="Create New Person" @click.prevent="createNewPersonClicked()" />
-                                </div>
+                                </div-->
                             </div></div>
 
-                            <div class="col-sm-12 form-group"><div class="row">
+                            <div class="form-group"><div class="row">
                                 <div class="col-sm-12">
-                                  <CreateNewPerson :displayComponent="displayCreateNewPerson" @new-person-created="newPersonCreated"/>
+                                    <input type="button" class="btn btn-primary" value="Add to Offender List" @click.prevent="addOffenderClicked()" />
                                 </div>
+                            </div></div>
+                            <div class="form-group"><div class="row">
+                                <!--div class="col-sm-12">
+                                  <CreateNewPerson :displayComponent="displayCreateNewPerson" @new-person-created="newPersonCreated"/>
+                                </div-->
 
                                 <div class="col-sm-12">
                                     <datatable ref="offender_table" id="offender-table" :dtOptions="dtOptionsOffender" :dtHeaders="dtHeadersOffender" />
                                 </div>
                             </div></div>
-                        </div>
+                        </div></div>
                     </div>
 
                     <div :id="lTab" class="tab-pane fade in">
@@ -161,6 +203,15 @@
                 </div>
             </div>
             <div slot="footer">
+                <div v-if="errorResponse" class="form-group">
+                    <div class="row">
+                        <div class="col-sm-12">
+                            <strong>
+                                <span style="white-space: pre;" v-html="errorResponse"></span>
+                            </strong>
+                        </div>
+                    </div>
+                </div>
                 <button type="button" v-if="processingDetails" disabled class="btn btn-default" @click="ok"><i class="fa fa-spinner fa-spin"></i> Adding</button>
                 <button type="button" v-else class="btn btn-default" @click="ok">Ok</button>
                 <button type="button" class="btn btn-default" @click="cancel">Cancel</button>
@@ -177,12 +228,13 @@ import datatable from "@vue-utils/datatable.vue";
 import { mapGetters, mapActions } from "vuex";
 import { api_endpoints, helpers, cache_helper } from "@/utils/hooks";
 import MapLocationOffence from "./map_location_offence1";
-import PersonSearch from "@common-components/search_person.vue";
-import CreateNewPerson from "@common-components/create_new_person.vue";
+import SearchPersonOrganisation from "@common-components/search_person_or_organisation.vue";
+//import CreateNewPerson from "@common-components/create_new_person.vue";
 import utils from "../utils";
 import $ from "jquery";
 import "bootstrap/dist/css/bootstrap.css";
 import "awesomplete/awesomplete.css";
+import uuid from 'uuid';
 
 export default {
   name: "Offence",
@@ -197,6 +249,7 @@ export default {
     vm.awe = null;
 
     return {
+      uuid: 0,
       displayCreateNewPerson: false,
       updatingContact: false,
       newPersonBeingCreated: false,
@@ -205,9 +258,9 @@ export default {
       processingDetails: false,
       current_alleged_offence: {
         id: null,
-        Act: "",
-        SectionRegulation: "",
-        AllegedOffence: ""
+        act: "",
+        section_regulation: "",
+        offence_text: ""
       },
       current_offender: null,
       offender_search_type: "individual",
@@ -216,6 +269,11 @@ export default {
       pTab: "pTab" + vm._uid,
       lTab: "lTab" + vm._uid,
       errorResponse: '',
+
+      regionDistricts: [],
+      regions: [], // this is the list of options
+      availableDistricts: [], // this is generated from the regionDistricts[] above
+
       dtHeadersOffender: ["id", "Individual/Organisation", "Details", "Action"],
       dtHeadersAllegedOffence: [
         "id",
@@ -283,29 +341,60 @@ export default {
       },
       dtOptionsAllegedOffence: {
         columns: [
-          {
-            data: "id",
-            visible: false
-          },
-          {
-            data: "Act"
-          },
-          {
-            data: "Section/Regulation"
-          },
-          {
-            data: "Alleged Offence"
-          },
-          {
-            data: "Action",
-            mRender: function(data, type, row) {
-              return (
-                '<a href="#" class="remove_button" data-alleged-offence-id="' +
-                row.id +
-                '">Remove</a>'
-              );
-            }
-          }
+      //    {
+      //      data: "id",
+      //      visible: false
+      //    },
+      //    {
+      //      data: "Act"
+      //    },
+      //    {
+      //      data: "Section/Regulation"
+      //    },
+      //    {
+      //      data: "Alleged Offence"
+      //    },
+      //    {
+      //      data: "Action",
+      //      mRender: function(data, type, row) {
+      //        return (
+      //          '<a href="#" class="remove_button" data-alleged-offence-id="' +
+      //          row.id +
+      //          '">Remove</a>'
+      //        );
+      //      }
+      //    }
+                    {
+                        visible: false,
+                        mRender: function(data, type, row) {
+                            return row.allegedOffence.id;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = row.allegedOffence.section_regulation.act;
+                            return ret_str;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = row.allegedOffence.section_regulation.name;
+                            return ret_str;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = row.allegedOffence.section_regulation.offence_text;
+                            return ret_str;
+                        }
+                    },
+                    {
+                        mRender: function(data, type, row) {
+                            let ret_str = '<a href="#" class="remove_button" data-alleged-offence-uuid="' + row.allegedOffence.uuid + '">Remove</a>';
+                            return ret_str;
+
+                        }
+                    },
         ]
       }
     };
@@ -314,18 +403,52 @@ export default {
     modal,
     datatable,
     MapLocationOffence,
-    PersonSearch,
-    CreateNewPerson
+    SearchPersonOrganisation,
+    //CreateNewPerson
   },
-  props:{
-        parent_update_function: {
-            type: Function,
+    props:{
+        region_id: {
+            required: false,
+            default: null,
         },
-  },
+        district_id: {
+            required: false,
+            default: null,
+        },
+        allocated_group_id: {
+            required: false,
+            default: null,
+        },
+    },
   computed: {
     ...mapGetters("offenceStore", {
       offence: "offence"
     }),
+    ...mapGetters('inspectionStore', {
+      inspection: "inspection",
+    }),
+    ...mapGetters('legalCaseStore', {
+      legal_case: "legal_case",
+    }),
+    ...mapGetters('callemailStore', {
+      call_email: "call_email",
+    }),
+    parent_legal_case: function() {
+        if (this.legal_case && this.legal_case.id) {
+            return true;
+        }
+    },
+    parent_call_email: function() {
+        if (this.call_email && this.call_email.id) {
+            return true;
+        }
+    },
+    parent_inspection: function() {
+        if (this.inspection && this.inspection.id) {
+            return true;
+        }
+    },
+
     modalTitle: function() {
       return "Identify Offence";
     },
@@ -342,7 +465,14 @@ export default {
       } else {
         return "Occurrence time";
       }
-    }
+    },
+    updateSearchPersonOrganisationBindId: function() {
+        this.uuid += 1
+        return 'offender' + this.uuid
+    },
+    parentEntity: function() {
+        return {'id': 1, 'data_type': 'individual'}
+    },
   },
   filters: {
     formatDate: function(data) {
@@ -358,9 +488,38 @@ export default {
       setDistrictId: "setDistrictId",
       setAllocatedGroupId: "setAllocatedGroupId",
       setInspectionId: "setInspectionId",
+      setLegalCaseId: "setLegalCaseId",
       createOffence: "createOffence",
-      setOffenceEmpty: "setOffenceEmpty"
+      setOffenceEmpty: "setOffenceEmpty",
     }),
+    ...mapActions('inspectionStore', {
+      loadInspection: "loadInspection",
+    }),
+    ...mapActions('callemailStore', {
+      loadCallEmail: "loadCallEmail",
+    }),
+    ...mapActions('legalCaseStore', {
+      loadLegalCase: "loadLegalCase",
+    }),
+    constructRegionsAndDistricts: async function() {
+        let returned_regions = await cache_helper.getSetCacheList(
+            "Regions",
+            "/api/region_district/get_regions/"
+        );
+        Object.assign(this.regions, returned_regions);
+        this.regions.splice(0, 0, {
+            id: "",
+            display_name: "",
+            district: "",
+            districts: [],
+            region: null
+        });
+        let returned_region_districts = await cache_helper.getSetCacheList(
+            "RegionDistricts",
+            api_endpoints.region_district
+        );
+        Object.assign(this.regionDistricts, returned_region_districts);
+    },
     newPersonCreated: function(obj) {
       if(obj.person){
         this.setCurrentOffender('individual', obj.person.id);
@@ -394,23 +553,41 @@ export default {
       });
     },
     removeClicked: function(e) {
-      let vm = this;
+            let alleged_offence_uuid = e.target.getAttribute("data-alleged-offence-uuid");
 
-      let allegedOffenceId = parseInt(
-        e.target.getAttribute("data-alleged-offence-id")
-      );
-      vm.$refs.alleged_offence_table.vmDataTable.rows(function(
-        idx,
-        data,
-        node
-      ) {
-        if (data.id === allegedOffenceId) {
-          vm.$refs.alleged_offence_table.vmDataTable
-            .row(idx)
-            .remove()
-            .draw();
-        }
-      });
+            // Remove offender
+            for (let i=0; i<this.offence.alleged_offences.length; i++){
+                let alleged_offence = this.offence.alleged_offences[i];
+                if (alleged_offence.uuid == alleged_offence_uuid){
+                    if (alleged_offence.id){
+                        // this alleged_offence exists in the database
+                        console.log('existing');
+                        alleged_offence.removed = true;
+                    } else {
+                        // this is new alleged_offence
+                        console.log('new');
+                        this.offence.alleged_offences.splice(i, 1);
+                    }
+                }
+            }
+            this.constructAllegedOffencesTable();
+    //    let vm = this;
+
+    //    let allegedOffenceId = parseInt(
+    //      e.target.getAttribute("data-alleged-offence-id")
+    //    );
+    //    vm.$refs.alleged_offence_table.vmDataTable.rows(function(
+    //      idx,
+    //      data,
+    //      node
+    //    ) {
+    //      if (data.id === allegedOffenceId) {
+    //        vm.$refs.alleged_offence_table.vmDataTable
+    //          .row(idx)
+    //          .remove()
+    //          .draw();
+    //      }
+    //    });
     },
     createNewPersonClicked: function() {
       let vm = this;
@@ -425,7 +602,7 @@ export default {
       let vm = this;
       vm.newPersonBeingCreated = false;
     },
-    addOffenderClicked: function() {
+    addOffenderClicked: async function() {
       let vm = this;
 
       if (
@@ -433,6 +610,8 @@ export default {
         vm.current_offender.id &&
         vm.current_offender.data_type
       ) {
+        // save person before adding to offender list
+        await this.$refs.search_offender.parentSave()
         let already_exists = false;
 
         let ids = vm.$refs.offender_table.vmDataTable.columns(0).data()[0];
@@ -480,104 +659,170 @@ export default {
       vm.setCurrentOffenderEmpty();
     },
     addAllegedOffenceClicked: function() {
-      let vm = this;
 
-      if (vm.current_alleged_offence.id) {
-        let already_exists = vm.$refs.alleged_offence_table.vmDataTable
-          .columns(0)
-          .data()[0]
-          .includes(vm.current_alleged_offence.id);
+        if (this.current_alleged_offence && this.current_alleged_offence.id) {
 
-        if (!already_exists) {
-          vm.$refs.alleged_offence_table.vmDataTable.row
-            .add({
-              id: vm.current_alleged_offence.id,
-              Act: vm.current_alleged_offence.Act,
-              "Section/Regulation":
-                vm.current_alleged_offence.SectionRegulation,
-              "Alleged Offence": vm.current_alleged_offence.AllegedOffence
-            })
-            .draw();
+            // Check if the item is already in the list
+            let already_exists = false;
+            for (let i=0; i<this.offence.alleged_offences.length; i++){
+                let alleged_offence = this.offence.alleged_offences[i];
+                if(alleged_offence.section_regulation.id == this.current_alleged_offence.id){
+                    already_exists = true;
+                }
+            }
+
+            if (!already_exists) {
+                let alleged_offence_obj = {
+                    id: '', 
+                    removed: false, 
+                    reason_for_removal: '', 
+                    removed_by_id: null,
+                    section_regulation: {},
+                    number_linked_sanction_outcomes_total: 0,
+                    number_linked_sanction_outcomes_active: 0,
+                    uuid: uuid()
+                };
+                Object.assign(alleged_offence_obj.section_regulation, this.current_alleged_offence);
+                this.offence.alleged_offences.push(alleged_offence_obj);
+            }
         }
-      }
 
-      vm.setCurrentAllegedOffenceEmpty();
+//      if (this.current_alleged_offence.id) {
+//        let already_exists = this.$refs.alleged_offence_table.vmDataTable.columns(0).data()[0].includes(this.current_alleged_offence.id);
+//
+//        if (!already_exists) {
+//          this.$refs.alleged_offence_table.vmDataTable.row.add({
+//              id: this.current_alleged_offence.id,
+//              Act: this.current_alleged_offence.Act,
+//              "Section/Regulation": this.current_alleged_offence.SectionRegulation,
+//              "Alleged Offence": this.current_alleged_offence.AllegedOffence
+//            }).draw();
+//        }
+//      }
+
+      this.setCurrentAllegedOffenceEmpty();
+        this.constructAllegedOffencesTable();
     },
+        constructAllegedOffencesTable: function(){
+            this.$refs.alleged_offence_table.vmDataTable.clear().draw();
+            if (this.offence.alleged_offences){
+                for(let i=0; i<this.offence.alleged_offences.length; i++){
+                    this.addAllegedOffenceToTable(this.offence.alleged_offences[i]);
+                }
+            }
+        },
+        addAllegedOffenceToTable: function(allegedOffence){
+            allegedOffence.uuid = uuid();
+            this.$refs.alleged_offence_table.vmDataTable.row.add({ allegedOffence: allegedOffence, offence: this.offence }).draw();
+        },
     ok: async function() {
-        this.processingDetails = true;
-        let response = await this.sendData();
-        if (response.ok) {
-            // For CallEmail related items table
-            if (this.$parent.call_email) {
-                await this.parent_update_function({
-                call_email_id: this.$parent.call_email.id,
-                });
-            }
-            if (this.$parent.inspection) {
-                await this.parent_update_function({
-                    inspection_id: this.$parent.inspection.id,
-                });
-            }
-        }
-        if (this.$parent.$refs.related_items_table) {
-            this.$parent.constructRelatedItemsTable();
-        }
+        try {
+            this.processingDetails = true;
+            let response = await this.sendData();
 
-        this.setOffenceEmpty();
-        this.close();
+            if (response.ok) {
+                // Refresh offence table on the dashboard page
+                if (this.$parent.$refs.offence_table){
+                    this.$parent.$refs.offence_table.vmDataTable.ajax.reload();
+                }
+
+                // For Related items table
+                if (this.parent_call_email) {
+                    await this.loadCallEmail({
+                        call_email_id: this.call_email.id,
+                    });
+                } else if (this.parent_legal_case) {
+                    await this.loadLegalCase({
+                        legal_case_id: this.legal_case.id,
+                    });
+                } else if (this.parent_inspection) {
+                    await this.loadInspection({
+                        inspection_id: this.inspection.id,
+                    });
+                }
+            }
+
+            if (this.$parent.$refs.related_items_table) {
+                this.$parent.constructRelatedItemsTable();
+            }
+
+            this.setOffenceEmpty();
+            this.close();
+        } catch(err) {
+            this.processError(err);
+        } finally {
+            this.processingDetails = false;
+        }
+    },
+    processError: async function(err) {
+        let errorText = '';
+        if (err.body.non_field_errors) {
+            // When non field errors raised
+            for (let i=0; i<err.body.non_field_errors.length; i++){
+                errorText += err.body.non_field_errors[i] + '<br />';
+            }
+        } else if(Array.isArray(err.body)) {
+            // When general errors raised
+            for (let i=0; i<err.body.length; i++){
+                errorText += err.body[i] + '<br />';
+            }
+        } else {
+            // When field errors raised
+            for (let field_name in err.body){
+                if (err.body.hasOwnProperty(field_name)){
+                    errorText += field_name + ':<br />';
+                    for (let j=0; j<err.body[field_name].length; j++){
+                        errorText += err.body[field_name][j] + '<br />';
+                    }
+                }
+            }
+        }
+        this.errorResponse = errorText;
+        //await swal("Error", errorText, "error");
     },
     cancel: function() {
-      this.processingDetails = false;
-      this.close();
+        // for call_email offenceBindId
+        if (this.$parent.call_email) {
+            this.$parent.updateUuid();
+        }
+
+        this.processingDetails = false;
+        this.close();
     },
     close: function() {
-      this.processingDetails = false;
-      this.isModalOpen = false;
+        this.processingDetails = false;
+        this.isModalOpen = false;
+        this.setOffenceEmpty();  // Make offence default
+        this.constructAllegedOffencesTable();
+        this.errorResponse = '';
     },
     mapOffenceClicked: function() {
       this.$refs.mapOffenceComponent.mapTabClicked();
     },
     sendData: async function() {
-      let vm = this;
+        let vm = this;
 
-      // If exists, set call_email id and other attributes to the offence
-      if (this.$parent.call_email) {
-          vm.setCallEmailId(this.$parent.call_email.id);
-          vm.setRegionId(this.$parent.call_email.region_id);
-          vm.setDistrictId(this.$parent.call_email.district_id);
-          vm.setAllocatedGroupId(this.$parent.call_email.allocated_group_id);
-      }
+        // If exists, set call_email_id and other attributes to the offence
+        if (this.$parent.call_email && this.$parent.call_email.id) {
+            vm.setCallEmailId(this.$parent.call_email.id);
+        }
 
-      // If exists, set inspection id to the offence
-      if (this.$parent.inspection) {
-          vm.setInspectionId(this.$parent.inspection.id);
-      }
-      // Collect offenders data from the datatable, and set them to the vuex
-      let offenders = vm.$refs.offender_table.vmDataTable
-        .rows()
-        .data()
-        .toArray();
-      vm.setOffenders(offenders);
+        // If exists, set inspection_id to the offence
+        if (this.$parent.inspection && this.$parent.inspection.id) {
+            vm.setInspectionId(this.$parent.inspection.id);
+        }
 
-      // Collect alleged offence data from the datatable, and set them to the vuex
-      let alleged_offences = vm.$refs.alleged_offence_table.vmDataTable
-        .rows()
-        .data()
-        .toArray();
-      let alleged_offence_ids = alleged_offences.map(a => {
-        return { id: a.id }; // We just need id to create relations between the offence and the alleged offence(s)
-      });
-      vm.setAllegedOffenceIds(alleged_offence_ids);
+        // If exists, set legal_case_id to the offence
+        if (this.$parent.legal_case && this.$parent.legal_case.id) {
+            vm.setLegalCaseId(this.$parent.legal_case.id);
+        }
 
-      try {
-          let res = await vm.createOffence();;
-          console.log(res);
-          if (res.ok) {
-            return res
-          }
-      } catch(err) {
-          this.errorResponse = err.statusText;
-      }
+        // Collect offenders data from the datatable, and set them to the vuex
+        let offenders = vm.$refs.offender_table.vmDataTable.rows().data().toArray();
+        vm.setOffenders(offenders);
+
+        let res = await vm.createOffence();;
+        return res
     },
     addEventListeners: function() {
       let vm = this;
@@ -587,16 +832,12 @@ export default {
       let el_to_time = $(vm.$refs.occurrenceTimeToPicker);
 
       // "From" field
-      el_fr_date.datetimepicker({
-        format: "DD/MM/YYYY",
-        maxDate: "now",
-        showClear: true
-      });
+      el_fr_date.datetimepicker({ format: "DD/MM/YYYY", maxDate: "now", showClear: true });
       el_fr_date.on("dp.change", function(e) {
         if (el_fr_date.data("DateTimePicker").date()) {
           vm.offence.occurrence_date_from = e.date.format("DD/MM/YYYY");
         } else if (el_fr_date.data("date") === "") {
-          vm.offence.occurrence_date_from = "";
+          vm.offence.occurrence_date_from = null;
         }
       });
       el_fr_time.datetimepicker({ format: "LT", showClear: true });
@@ -604,21 +845,17 @@ export default {
         if (el_fr_time.data("DateTimePicker").date()) {
           vm.offence.occurrence_time_from = e.date.format("LT");
         } else if (el_fr_time.data("date") === "") {
-          vm.offence.occurrence_time_from = "";
+          vm.offence.occurrence_time_from = null;
         }
       });
 
       // "To" field
-      el_to_date.datetimepicker({
-        format: "DD/MM/YYYY",
-        maxDate: "now",
-        showClear: true
-      });
+      el_to_date.datetimepicker({ format: "DD/MM/YYYY", maxDate: "now", showClear: true });
       el_to_date.on("dp.change", function(e) {
         if (el_to_date.data("DateTimePicker").date()) {
           vm.offence.occurrence_date_to = e.date.format("DD/MM/YYYY");
         } else if (el_to_date.data("date") === "") {
-          vm.offence.occurrence_date_to = "";
+          vm.offence.occurrence_date_to = null;
         }
       });
       el_to_time.datetimepicker({ format: "LT", showClear: true });
@@ -626,7 +863,7 @@ export default {
         if (el_to_time.data("DateTimePicker").date()) {
           vm.offence.occurrence_time_to = e.date.format("LT");
         } else if (el_to_time.data("date") === "") {
-          vm.offence.occurrence_time_to = "";
+          vm.offence.occurrence_time_to = null;
         }
       });
 
@@ -769,8 +1006,9 @@ export default {
     },
     setCurrentOffender: function(data_type, id) {
       let vm = this;
-
-      if (data_type == "individual") {
+      if (!id) {
+          this.current_offender = null;
+      } else if (data_type == "individual") {
         let initialisers = [utils.fetchUser(id)];
         Promise.all(initialisers).then(data => {
           vm.current_offender = data[0];
@@ -789,9 +1027,9 @@ export default {
 
       if (offence.id) {
         vm.current_alleged_offence.id = offence.id;
-        vm.current_alleged_offence.Act = offence.act;
-        vm.current_alleged_offence.SectionRegulation = offence.name;
-        vm.current_alleged_offence.AllegedOffence = offence.offence_text;
+        vm.current_alleged_offence.act = offence.act;
+        vm.current_alleged_offence.name = offence.name;
+        vm.current_alleged_offence.offence_text = offence.offence_text;
       } else {
         vm.setCurrentAllegedOffenceEmpty();
       }
@@ -802,30 +1040,71 @@ export default {
       vm.current_offender = null;
 
       $("#offender_input").val("");
-        vm.$refs.person_search.clearInput();
+        vm.$refs.search_offender.clearInput();
     },
     setCurrentAllegedOffenceEmpty: function() {
       let vm = this;
 
       vm.current_alleged_offence.id = null;
-      vm.current_alleged_offence.Act = "";
-      vm.current_alleged_offence.SectionRegulation = "";
-      vm.current_alleged_offence.AllegedOffence = "";
+      vm.current_alleged_offence.act = "";
+      vm.current_alleged_offence.name = "";
+      vm.current_alleged_offence.offence_text = "";
 
       $("#alleged-offence").val("");
+    },
+    currentRegionIdChanged: function() {
+      this.updateDistricts();
+    },
+    updateDistricts: function(updateFromUI) {
+      console.log('updateDistricts');
+      if (updateFromUI) {
+        // We don't want to clear the default district selection when initially loaded, which derived from the call_email
+        this.offence.district_id = null;
+      }
+
+      this.availableDistricts = []; // This is a list of options for district
+      for (let record of this.regionDistricts) {
+        if (this.offence.region_id == record.id) {
+          for (let district_id of record.districts) {
+            for (let district_record of this.regionDistricts) {
+              if (district_record.id == district_id) {
+                this.availableDistricts.push(district_record);
+              }
+            }
+          }
+        }
+      }
+
+      this.availableDistricts.splice(0, 0, {
+        id: "",
+        display_name: "",
+        district: "",
+        districts: [],
+        region: null
+      });
+    },
+  },
+    created: async function() {
+        console.log('created');
+
+        let self = this;
+        self.setOffenceEmpty();
+        self.$nextTick(function() {
+            self.initAwesompleteAllegedOffence();
+        });
+        await this.constructRegionsAndDistricts();
+        this.setRegionId(this.region_id);
+        this.setDistrictId(this.district_id);
+        this.setAllocatedGroupId(this.allocated_group_id);
+    },
+    mounted: function() {
+        console.log('mounted');
+
+        let vm = this;
+        vm.$nextTick(() => {
+            vm.addEventListeners();
+        });
     }
-  },
-  created: async function() {
-    this.$nextTick(function() {
-      this.initAwesompleteAllegedOffence();
-    });
-  },
-  mounted: function() {
-    let vm = this;
-    vm.$nextTick(() => {
-      vm.addEventListeners();
-    });
-  }
 };
 </script>
 

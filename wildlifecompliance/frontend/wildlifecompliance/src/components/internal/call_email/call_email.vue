@@ -10,7 +10,6 @@
       </div>
           <div class="col-md-3">
             <CommsLogs :comms_url="comms_url" :logs_url="logs_url" :comms_add_url="comms_add_url" :disable_add_entry="false"/>
-            
             <div class="row">
                 <div class="panel panel-default">
                     <div class="panel-heading">
@@ -32,7 +31,6 @@
                           </div>
                           <div class="row">
                             <div class="col-sm-12">
-                              
                               <select :disabled="!call_email.user_in_group" class="form-control" v-model="call_email.assigned_to_id" @change="updateAssignedToId()">
                                 <option  v-for="option in call_email.allocated_group" :value="option.id" v-bind:key="option.id">
                                   {{ option.full_name }} 
@@ -74,13 +72,13 @@
                           </div>
                         </div>
 
-                        <div v-if="statusId ==='open' && canUserAction" class="row action-button">
+                        <!--div v-if="statusId ==='open' && canUserAction" class="row action-button">
                           <div class="col-sm-12">
                                 <a ref="save" @click="save()" class="btn btn-primary btn-block">
                                   Save
                                 </a>
                           </div>
-                        </div>
+                        </div-->
 
                         <!-- <div class="row">
                           <div class="col-sm-12"/>
@@ -125,20 +123,14 @@
                                 </a>
                           </div>
                         </div>
-                        <!-- <div class="row">
-                          <div class="col-sm-12"/>
-                        </div> -->
-
                         <div v-if="statusId ==='open' && canUserAction" class="row action-button">
                           <div class="col-sm-12">
-                                <a ref="allocateForCase" @click="addWorkflow('allocate_for_case')" class="btn btn-primary btn-block" >
+                                <!--a ref="allocateForInspection" @click="addWorkflow('allocate_for_inspection')" class="btn btn-primary btn-block"-->
+                                <a ref="allocateForLegalCase" @click="allocateForLegalCase()" class="btn btn-primary btn-block" >
                                   Allocate for Case
                                 </a>
                           </div>
                         </div>
-                        <!-- <div class="row">
-                          <div class="col-sm-12"/>
-                        </div> -->
                         <div v-if="statusId !=='closed' && canUserAction" class="row action-button">
                           <div class="col-sm-12">
                                 <a ref="close" @click="addWorkflow('close')" class="btn btn-primary btn-block">
@@ -192,7 +184,16 @@
                             </div></div>
             
                             <div v-show="statusId !=='draft'">
-                                <SearchPerson />
+                                <SearchPersonOrganisation 
+                                :parentEntity="callerEntity"
+                                :isEditable="personSearchVisibility" 
+                                classNames="form-control" 
+                                initialSearchType="individual" 
+                                @entity-selected="entitySelected" 
+                                showCreateUpdate
+                                personOnly
+                                ref="search_person_organisation"
+                                v-bind:key="updateSearchPersonOrganisationBindId"/>
                             </div>
                           </FormSection>
             
@@ -357,13 +358,13 @@
             </div>          
           </div>
 
-        <div v-if="statusId ==='draft'" class="navbar navbar-fixed-bottom" style="background-color: #f5f5f5 ">
+        <div v-if="call_email.can_user_action" class="navbar navbar-fixed-bottom" style="background-color: #f5f5f5 ">
                         <div class="navbar-inner">
                             <div class="container">
                                 <p class="pull-right" style="margin-top:5px;">
                                     
-                                    <input type="button" @click.prevent="saveExit" class="btn btn-primary" value="Save and Exit"/>
-                                    <input type="button" @click.prevent="save" class="btn btn-primary" value="Save and Continue"/>
+                                    <input type="button" @click.prevent="save('exit')" class="btn btn-primary" value="Save and Exit"w/>
+                                    <input type="button" @click.prevent="save('noexit')" class="btn btn-primary" value="Save and Continue" />
                                 </p>
                             </div>
                         </div>
@@ -371,12 +372,26 @@
         <div v-if="workflow_type">
           <CallWorkflow ref="add_workflow" :workflow_type="workflow_type" v-bind:key="workflowBindId" />
         </div>
-        <Offence ref="offence" :parent_update_function="loadCallEmail"/>
+        <Offence 
+        ref="offence" 
+        :region_id="call_email.region_id" 
+        :district_id="call_email.district_id" 
+        :allocated_group_id="call_email.allocated_group_id" 
+        v-bind:key="offenceBindId"/>
         <div v-if="sanctionOutcomeInitialised">
-            <SanctionOutcome ref="sanction_outcome" :parent_update_function="loadCallEmail"/>
+            <SanctionOutcome 
+            ref="sanction_outcome" 
+            />
         </div>
         <div v-if="inspectionInitialised">
-            <Inspection ref="inspection"/>
+            <Inspection 
+             ref="inspection"
+            />
+        </div>
+        <div v-if="legalCaseInitialised">
+            <CreateLegalCaseModal 
+            ref="legal_case"
+            />
         </div>
     </div>
 </template>
@@ -388,7 +403,8 @@ import CommsLogs from "@common-components/comms_logs.vue";
 import MapLocation from "./map_location.vue";
 import datatable from '@vue-utils/datatable.vue'
 import { api_endpoints, helpers, cache_helper } from "@/utils/hooks";
-import SearchPerson from "./search_person.vue";
+//import SearchPerson from "./search_person.vue";
+import SearchPersonOrganisation from "@common-components/search_person_or_organisation.vue";
 import utils from "@/components/external/utils";
 import { mapState, mapGetters, mapActions, mapMutations } from "vuex";
 import moment from 'moment';
@@ -401,11 +417,15 @@ require("select2/dist/css/select2.min.css");
 require("select2-bootstrap-theme/dist/select2-bootstrap.min.css");
 import Inspection from '../inspection/create_inspection_modal';
 import RelatedItems from "@common-components/related_items.vue";
+import hash from 'object-hash';
+import CreateLegalCaseModal from "../legal_case/create_legal_case_modal.vue";
 
 export default {
   name: "ViewCallEmail",
   data: function() {
     return {
+      objectHash: null,
+      uuid: 0,
       cTab: 'cTab'+this._uid,
       rTab: 'rTab'+this._uid,
       sanctionOutcomeKey: 'sanctionOutcome' + this._uid,
@@ -468,19 +488,47 @@ export default {
       sanctionOutcomeInitialised: false,
       offenceInitialised: false,
       inspectionInitialised: false,
+      legalCaseInitialised: false,
+      hashAttributeWhitelist: [
+          "allocated_group_id",
+          "location",
+          "location_id",
+          "classification",
+          "classification_id",
+          "lodgement_date",
+          "number",
+          "caller",
+          "report_type_id",
+          "caller_phone_number",
+          "anonymous_call",
+          "caller_wishes_to_remain_anonymous",
+          "occurrence_from_to",
+          "occurrence_date_from",
+          "occurrence_time_start",
+          "occurrence_date_to",
+          "occurrence_time_end",
+          "date_of_call",
+          "time_of_call",
+          "advice_given",
+          "advice_details",
+          "region_id",
+          "district_id",
+          "case_priority_id",
+          ]
     };
   },
   components: {
     CommsLogs,
     FormSection,
     MapLocation,
-    SearchPerson,
+    SearchPersonOrganisation,
     CallWorkflow,
     Offence,
     //datatable,
     RelatedItems,
     SanctionOutcome,
     Inspection,
+    CreateLegalCaseModal,
   },
   computed: {
     ...mapGetters('callemailStore', {
@@ -490,8 +538,32 @@ export default {
       renderer_form_data: 'renderer_form_data',
       //current_user: 'current_user',
     }),
+    personSearchVisibility: function() {
+        let visible = false;
+        if (this.statusId ==='open') {
+            visible = true;
+        }
+        return visible;
+    },
+    updateSearchPersonOrganisationBindId: function() {
+        let bindId = 'individual';
+        if (this.call_email.email_user && this.call_email.email_user.id) {
+            bindId += this.call_email.email_user.id;
+        } else {
+            bindId += '0'
+        }
+        return bindId
+    },
     csrf_token: function() {
       return helpers.getCookie("csrftoken");
+    },
+    callerEntity: function() {
+        let entity = {};
+        if (this.call_email.email_user && this.call_email.email_user.id) {
+            entity.id = this.call_email.email_user.id;
+            entity.data_type = 'individual';
+        }
+        return entity;
     },
     occurrenceDateLabel: function() {
       if (this.call_email.occurrence_from_to) {
@@ -561,6 +633,10 @@ export default {
             return false
         }
     },
+    offenceBindId: function() {
+        //this.uuid += 1
+        return 'offence' + this.uuid;
+    },
   },
   filters: {
     formatDate: function(data) {
@@ -579,10 +655,50 @@ export default {
       setTimeOfCall: 'setTimeOfCall',
       setDateOfCall: 'setDateOfCall',
       setRelatedItems: 'setRelatedItems',
+      setCaller: 'setCaller',
     }),
     ...mapActions({
       saveFormData: 'saveFormData',
     }),
+    updateUuid: function() {
+        this.uuid += 1;
+    },
+    entitySelected: async function(para) {
+        console.log(para);
+        await this.setCaller(para);
+    },
+    formChanged: function(){
+        let changed = false;
+        let copiedCallEmail = {};
+        Object.getOwnPropertyNames(this.call_email).forEach(
+            (val, idx, array) => {
+                if (this.hashAttributeWhitelist.includes(val)) {
+                    copiedCallEmail[val] = this.call_email[val]
+                }
+            });
+        this.addHashAttributes(copiedCallEmail);
+        if(this.objectHash !== hash(copiedCallEmail)){
+            changed = true;
+        }
+        return changed;
+    },
+    calculateHash: function() {
+        let copiedCallEmail = {}
+        Object.getOwnPropertyNames(this.call_email).forEach(
+            (val, idx, array) => {
+                if (this.hashAttributeWhitelist.includes(val)) {
+                    copiedCallEmail[val] = this.call_email[val]
+                }
+            });
+        this.addHashAttributes(copiedCallEmail);
+        this.objectHash = hash(copiedCallEmail);
+    },
+    addHashAttributes: function(obj) {
+        let copiedRendererFormData = Object.assign({}, this.renderer_form_data);
+        obj.renderer_form_data = copiedRendererFormData;
+        let copiedCallerEntity = Object.assign({}, this.callerEntity);
+        obj.callerEntity = copiedCallerEntity;
+    },
     updateWorkflowBindId: function() {
         let timeNow = Date.now()
         if (this.workflow_type) {
@@ -615,22 +731,45 @@ export default {
           this.$refs.inspection.isModalOpen = true
       });
     },
-    save: async function () {
-        if (this.call_email.id) {
-            await this.saveCallEmail({ route: false, crud: 'save' });
-        } else {
-            await this.saveCallEmail({ route: false, crud: 'create'});
-            this.$nextTick(function () {
-                this.$router.push({name: 'view-call-email', params: {call_email_id: this.call_email.id}});
-            });
-        }
+    allocateForLegalCase() {
+      this.legalCaseInitialised = true;
+        this.$nextTick(() => {
+          this.$refs.legal_case.isModalOpen = true
+      });
     },
-    saveExit: async function() {
-      if (this.call_email.id) {
-        await this.saveCallEmail({ route: true, crud: 'save' });
-      } else {
-        await this.saveCallEmail({ route: true, crud: 'create'});
-      }
+    //saveIndividual: function() {
+    //  let noPersonSave = true;
+    //  this.save(noPersonSave)
+    //},
+    save: async function (returnToDash) {
+        console.log(returnToDash)
+        let savedCallEmail = null;
+        let savedPerson = null;
+        if (this.call_email.id) {
+            if (this.$refs.search_person_organisation && this.$refs.search_person_organisation.entityIsPerson) {
+                savedPerson = await this.$refs.search_person_organisation.parentSave()
+                // if person save ok, continue with Inspection save
+                if (savedPerson && savedPerson.ok) {
+                    savedCallEmail = await this.saveCallEmail({ crud: 'save' });
+                }
+            // no search_person_org
+            } else {
+                savedCallEmail = await this.saveCallEmail({ crud: 'save' });
+            }
+        } else {
+            // new CallEmail
+            savedCallEmail = await this.saveCallEmail({ crud: 'create'});
+        }
+        console.log(savedCallEmail)
+        // recalc hash after save
+        this.calculateHash();
+        if (savedCallEmail && savedCallEmail.ok && returnToDash === 'exit') {
+            // remove redundant eventListeners
+            window.removeEventListener('beforeunload', this.leaving);
+            window.removeEventListener('onblur', this.leaving);
+            // return to dash
+            this.$router.push({ name: 'internal-call-email-dash' });
+        }
     },
     duplicate: async function() {
       await this.saveCallEmail({ route: false, crud: 'duplicate'});
@@ -744,10 +883,23 @@ export default {
           vm.call_email.time_of_call = "";
         }
       });
+      window.addEventListener('beforeunload', this.leaving);
+      window.addEventListener('onblur', this.leaving);
+    },
+    leaving: function(e) {
+        //let vm = this;
+        let dialogText = 'You have some unsaved changes.';
+        if (this.formChanged()){
+            e.returnValue = dialogText;
+            return dialogText;
+        }
     },
   },
+  destroyed: function() {
+      window.removeEventListener('beforeunload', this.leaving);
+      window.removeEventListener('onblur', this.leaving);
+  },
   created: async function() {
-    
     if (this.$route.params.call_email_id) {
       await this.loadCallEmail({ call_email_id: this.$route.params.call_email_id });
     }
@@ -808,7 +960,7 @@ export default {
     if (!this.call_email.time_of_call && this.call_email.can_user_edit_form) {
         this.setTimeOfCall(moment().format('LT'));
     }
-    
+    this.calculateHash();
   },
   mounted: function() {
       let vm = this;
@@ -854,6 +1006,7 @@ export default {
       
       vm.$nextTick(() => {
           vm.addEventListeners();
+          //this.calculateHash();
       });
 
   }

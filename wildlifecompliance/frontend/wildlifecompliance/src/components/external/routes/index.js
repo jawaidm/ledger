@@ -1,4 +1,5 @@
 import ExternalDashboard from '../dashboard.vue'
+import ExternalDashboardSanctionOutcome from '../dashboard_sanction_outcome.vue'
 import Application from '../application.vue'
 import ApplicationApply from '../application_apply.vue'
 import ApplicationApplyOrganisation from '../application_apply_organisation.vue'
@@ -21,6 +22,11 @@ export default
             path: '/',
             component: ExternalDashboard,
             name: 'external-applications-dash' 
+        },
+        {
+            path: 'sanction_outcome',
+            component: ExternalDashboardSanctionOutcome,
+            name: 'external-sanction-outcome-dash'
         },
         {
             path: 'organisations/manage/:org_id',

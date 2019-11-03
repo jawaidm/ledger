@@ -15,8 +15,6 @@ from wildlifecompliance.components.call_email.models import (
     CallEmailUserAction,
     MapLayer,
     #ComplianceWorkflowLogEntry,
-    CasePriority,
-    # InspectionType,
     )
 from wildlifecompliance.components.main.related_item import get_related_items
 from wildlifecompliance.components.main.serializers import CommunicationLogEntrySerializer
@@ -218,18 +216,6 @@ class ReportTypeSerializer(serializers.ModelSerializer):
              )
 
 
-class CasePrioritySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CasePriority
-        fields = '__all__'
-
-
-# class InspectionTypeSerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = InspectionType
-#         fields = '__all__'
-
-
 class SaveCallEmailSerializer(serializers.ModelSerializer):
     status = CustomChoiceField(read_only=True)
     classification = ClassificationSerializer(read_only=True)
@@ -257,10 +243,6 @@ class SaveCallEmailSerializer(serializers.ModelSerializer):
         required=False, write_only=True, allow_null=True)
     allocated_group_id = serializers.IntegerField(
         required=False, write_only=True, allow_null=True)
-    case_priority_id = serializers.IntegerField(
-        required=False, write_only=True, allow_null=True)
-    #inspection_type_id = serializers.IntegerField(
-     #   required=False, write_only=True, allow_null=True)
     volunteer_id = serializers.IntegerField(
         required=False, write_only=True, allow_null=True)
 
@@ -301,8 +283,6 @@ class SaveCallEmailSerializer(serializers.ModelSerializer):
             'email_user_id',
             'region_id',
             'district_id',
-            'case_priority_id',
-            #'inspection_type_id',
             'volunteer_id',
         )
         read_only_fields = (
@@ -421,8 +401,6 @@ class CallEmailSerializer(serializers.ModelSerializer):
             'email_user',
             'region_id',
             'district_id',
-            'case_priority_id',
-            #'inspection_type_id',
             'user_in_group',
             'related_items',
             'selected_referrers',
@@ -658,10 +636,6 @@ class CreateCallEmailSerializer(serializers.ModelSerializer):
         required=False, write_only=True, allow_null=True)
     allocated_group_id = serializers.IntegerField(
         required=False, write_only=True, allow_null=True)
-    case_priority_id = serializers.IntegerField(
-        required=False, write_only=True, allow_null=True)
-    #inspection_type_id = serializers.IntegerField(
-     #   required=False, write_only=True, allow_null=True)
 
     class Meta:
         model = CallEmail
@@ -690,8 +664,6 @@ class CreateCallEmailSerializer(serializers.ModelSerializer):
             #'referrer_id',
             'region_id',
             'district_id',
-            'case_priority_id',
-            #'inspection_type_id',
         )
         read_only_fields = (
             'id', 

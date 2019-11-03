@@ -83,9 +83,6 @@ def prepare_mail(request, instance, workflow_entry, send_mail, recipient_id=None
         else:
             email_group.append(request.user)
 
-        print("email_group")
-        print(email_group)
-
         # send email
         email_data = send_mail(
             email_group,

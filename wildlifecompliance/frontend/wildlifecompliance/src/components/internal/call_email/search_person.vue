@@ -200,7 +200,7 @@ import datatable from '@vue-utils/datatable.vue'
 import ApplicationDashTable from '@common-components/applications_dashboard.vue'
 import LicenceDashTable from '@common-components/licences_dashboard.vue'
 import ReturnDashTable from '@common-components/returns_dashboard.vue'
-import PersonSearch from "@common-components/search_person.vue";
+import PersonSearch from "@common-components/search_person_or_organisation.vue";
 import 'bootstrap/dist/css/bootstrap.css';
 import 'awesomplete/awesomplete.css';
 import utils from '../utils'

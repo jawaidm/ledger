@@ -38,6 +38,7 @@ module.exports = {
     call_email: "/api/call_email/",
     offence: "/api/offence/",
     sanction_outcome: "/api/sanction_outcome/",
+    sanction_outcome_paginated: "/api/sanction_outcome_paginated/",
     classification: "/api/classification/",
     report_types: "/api/report_types/",
     referrers: "/api/referrers/",
@@ -48,5 +49,9 @@ module.exports = {
     inspection_types: '/api/inspection_types/',
     call_email_paginated: '/api/call_email_paginated/',
     inspection: '/api/inspection/',
+    temporary_document: '/api/temporary_document/',
+    compliance_management_users: '/api/compliance_management_users/',
+    legal_case: '/api/legal_case/',
+    legal_case_priorities: '/api/legal_case_priorities/',
 }
 

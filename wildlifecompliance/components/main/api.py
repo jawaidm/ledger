@@ -1,12 +1,24 @@
 from wildlifecompliance.components.call_email.models import Location
 from wildlifecompliance.components.call_email.serializers import LocationSerializer
-from django.core.files.storage import default_storage 
-import os
-from django.core.files.base import ContentFile
+from wildlifecompliance.components.main.serializers import (
+        TemporaryDocumentCollectionSerializer,
+        )
+from wildlifecompliance.components.main.models import TemporaryDocumentCollection
+from wildlifecompliance.components.main.process_document import save_document, cancel_document, delete_document
+from rest_framework import viewsets, serializers, status, generics, views, filters
+from rest_framework.decorators import (
+    detail_route,
+    list_route,
+    renderer_classes,
+    parser_classes,
+    api_view
+)
+from wildlifecompliance.helpers import is_internal
+from rest_framework.response import Response
+from rest_framework.renderers import JSONRenderer
+from django.core.exceptions import ValidationError
 import traceback
-
-def create_new_person(request, *args, **kwargs):
-    pass
+from django.db import transaction
 
 
 def save_location(location_request_data, *args, **kwargs):
@@ -30,167 +42,76 @@ def save_location(location_request_data, *args, **kwargs):
             location_instance = location_serializer.save()
     return location_serializer.data
 
-def process_generic_document(request, instance, document_type=None, *args, **kwargs):
-    print("process_generic_document")
-    print(request.data)
-    try:
-        action = request.data.get('action')
-        comms_log_id = request.data.get('comms_log_id')
-        comms_instance = None
-        # returned_file_data = None
 
-        if document_type == 'comms_log' and comms_log_id and comms_log_id is not 'null':
-            comms_instance = instance.comms_logs.get(
-                    id=comms_log_id)
-        elif document_type == 'comms_log':
-            comms_instance = instance.comms_logs.create()
+class TemporaryDocumentCollectionViewSet(viewsets.ModelViewSet):
+    queryset = TemporaryDocumentCollection.objects.all()
+    serializer_class = TemporaryDocumentCollectionSerializer
 
-        print('comms_instance')
-        print(comms_instance)
+    def get_queryset(self):
+        # import ipdb; ipdb.set_trace()
+        #user = self.request.user
+        if is_internal(self.request):
+            return TemporaryDocumentCollection.objects.all()
+        return TemporaryDocumentCollection.objects.none()
 
-        if action == 'list':
-            pass
+    def create(self, request, *args, **kwargs):
+        print("create temp doc coll")
+        print(request.data)
+        try:
+            with transaction.atomic():
+                serializer = TemporaryDocumentCollectionSerializer(
+                        data=request.data, 
+                        )
+                serializer.is_valid(raise_exception=True)
+                if serializer.is_valid():
+                    instance = serializer.save()
+                    save_document(request, instance, comms_instance=None, document_type=None)
 
-        elif action == 'delete':
-            delete_document(request, instance, comms_instance, document_type)
+                    return Response(serializer.data)
+        except serializers.ValidationError:
+            print(traceback.print_exc())
+            raise
+        except ValidationError as e:
+            if hasattr(e, 'error_dict'):
+                raise serializers.ValidationError(repr(e.error_dict))
+            else:
+                raise serializers.ValidationError(repr(e[0].encode('utf-8')))
+        except Exception as e:
+            print(traceback.print_exc())
+            raise serializers.ValidationError(str(e))
 
-        elif action == 'cancel':
-            deleted = cancel_document(request, instance, comms_instance, document_type)
+    @detail_route(methods=['POST'])
+    @renderer_classes((JSONRenderer,))
+    # Designed for uploading comms_log files within "create" modals when no parent entity instance yet exists
+    # response returned to compliance_file.vue
+    def process_temp_comms_log_document(self, request, *args, **kwargs):
+        print("process_temp_comms_log_document")
+        print(request.data)
+        try:
+            instance = self.get_object()
+            action = request.data.get('action')
+            #comms_instance = None
 
-        elif action == 'save':
-            save_document(request, instance, comms_instance, document_type)
+            if action == 'list':
+                pass
 
-        # HTTP Response varies by action and instance type
-        if comms_instance and action == 'cancel' and deleted:
-            return deleted
-        elif comms_instance:
-            returned_file_data = [dict(
-                        file=d._file.url,
-                        id=d.id,
-                        name=d.name,
-                        ) for d in comms_instance.documents.all() if d._file]
-            return {'filedata': returned_file_data,
-                    'comms_instance_id': comms_instance.id}
-        elif document_type == 'inspection_report':
-            returned_file_data = [dict(
-                        file=d._file.url,
-                        id=d.id,
-                        name=d.name,
-                        ) for d in instance.report.all() if d._file]
-            return {'filedata': returned_file_data}
+            elif action == 'delete':
+                delete_document(request, instance, comms_instance=None, document_type=None)
 
-        else:
+            elif action == 'cancel':
+                cancel_document(request, instance, comms_instance=None, document_type=None)
+
+            elif action == 'save':
+                save_document(request, instance, comms_instance=None, document_type=None)
+
             returned_file_data = [dict(
                         file=d._file.url,
                         id=d.id,
                         name=d.name,
                         ) for d in instance.documents.all() if d._file]
-            return {'filedata': returned_file_data}
+            return Response({'filedata': returned_file_data})
 
-    except Exception as e:
-        print(traceback.print_exc())
-        raise e
-
-def delete_document(request, instance, comms_instance, document_type):
-    # inspection report delete
-    if document_type == 'inspection_report' and 'document_id' in request.data:
-        document_id = request.data.get('document_id')
-        document = instance.report.get(id=document_id)
-
-    # comms_log doc store delete
-    elif comms_instance and 'document_id' in request.data:
-        document_id = request.data.get('document_id')
-        document = comms_instance.documents.get(id=document_id)
-
-    # default doc store delete
-    elif 'document_id' in request.data:
-        document_id = request.data.get('document_id')
-        document = instance.documents.get(id=document_id)
-
-    if document._file and os.path.isfile(
-            document._file.path):
-        os.remove(document._file.path)
-
-    document.delete()
-
-def cancel_document(request, instance, comms_instance, document_type):
-        # inspection report cancel
-        if document_type == 'inspection_report':
-            document_list = instance.report.all()
-
-            for document in document_list:
-                if document._file and os.path.isfile(
-                        document._file.path):
-                    os.remove(document._file.path)
-                document.delete()
-
-        # comms_log doc cancel
-        elif comms_instance:
-            document_list = comms_instance.documents.all()
-
-            for document in document_list:
-                if document._file and os.path.isfile(
-                        document._file.path):
-                    os.remove(document._file.path)
-                document.delete()
-            return comms_instance.delete()
-
-        # default doc cancel
-        else:
-            document_list = instance.documents.all()
-
-            for document in document_list:
-                if document._file and os.path.isfile(
-                        document._file.path):
-                    os.remove(document._file.path)
-                document.delete()
-
-def save_document(request, instance, comms_instance, document_type):
-        # Match model related_name to instance or comms_instance, eg.
-        # sanction_outcome = models.ForeignKey(SanctionOutcome, related_name='documents')..
-        # this document can be accessed or created by 'instance.documents'
-
-        # inspection report save
-        if document_type == 'inspection_report' and 'filename' in request.data:
-            filename = request.data.get('filename')
-            _file = request.data.get('_file')
-
-            document = instance.report.get_or_create(
-                name=filename)[0]
-            path = default_storage.save(
-                'wildlifecompliance/{}/{}/report/{}'.format(
-                    instance._meta.model_name, instance.id, filename), ContentFile(
-                    _file.read()))
-
-            document._file = path
-            document.save()
-        # comms_log doc store save
-        elif comms_instance and 'filename' in request.data:
-            filename = request.data.get('filename')
-            _file = request.data.get('_file')
-
-            document = comms_instance.documents.get_or_create(
-                name=filename)[0]
-            path = default_storage.save(
-                'wildlifecompliance/{}/{}/communications/{}/documents/{}'.format(
-                    instance._meta.model_name, instance.id, comms_instance.id, filename), ContentFile(
-                    _file.read()))
-
-            document._file = path
-            document.save()
-
-        # default doc store save
-        elif 'filename' in request.data:
-            filename = request.data.get('filename')
-            _file = request.data.get('_file')
-
-            document = instance.documents.get_or_create(
-                name=filename)[0]
-            path = default_storage.save(
-                'wildlifecompliance/{}/{}/documents/{}'.format(
-                    instance._meta.model_name, instance.id, filename), ContentFile(
-                    _file.read()))
-
-            document._file = path
-            document.save()
+        except Exception as e:
+            print(traceback.print_exc())
+            raise e
 

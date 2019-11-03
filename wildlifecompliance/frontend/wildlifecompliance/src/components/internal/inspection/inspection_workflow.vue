@@ -59,28 +59,11 @@ export default {
             isModalOpen: false,
             processingDetails: false,
             form: null,
-            //regions: [],
-            //regionDistricts: [],
-            //availableDistricts: [],
-            //casePriorities: [],
-            //inspectionTypes: [],
-            //externalOrganisations: [],
             workflowDetails: '',
             errorResponse: "",
-            //region_id: null,
-            //district_id: null,
-            //assigned_to_id: null,
-            //inspection_type_id: null,
-            //advice_details: "",
-            //allocatedGroup: [],
-            //allocated_group_id: null,
             documentActionUrl: '',
-            // files: [
-            //         {
-            //             'file': null,
-            //             'name': ''
-            //         }
-            //     ]
+            //allocatedGroup: [],
+            allocated_group_id: null,
       }
     },
     components: {
@@ -97,6 +80,15 @@ export default {
       ...mapGetters('inspectionStore', {
         inspection: "inspection",
       }),
+      //allocatedGroupId: async function() {
+      //    let allocated_group_id = null;
+      //    if (this.workflow_type) {
+      //        allocated_group_id = await this.updateAllocatedGroupId()
+      //    }
+      //    this.$nextTick(() => {
+      //        return allocated_group_id;
+      //    });
+      //},
       regionDistrictId: function() {
           if (this.district_id || this.region_id) {
               return this.district_id ? this.district_id : this.region_id;
@@ -111,15 +103,19 @@ export default {
               return "Request Amendment";
           } else if (this.workflow_type === 'close') {
               return "Close Inspection";
+          } else if (this.workflow_type === 'endorse') {
+              return "Endorse and Close Inspection";
           }
       },
-      // groupPermission: function() {
-      //     if (this.workflow_type === 'send_to_manager') {
-      //         return "manager";
-      //     } else if (this.workflow_type === 'request_amendment') {
-      //         return "officer";
-      //     }
-      // },
+      groupPermission: function() {
+          if (this.workflow_type === 'send_to_manager') {
+              return "manager";
+          } else if (this.workflow_type === 'request_amendment') {
+              return "officer";
+          } else {
+              return null;
+          }
+      },
     },
     filters: {
       formatDate: function(data) {
@@ -132,35 +128,28 @@ export default {
           loadInspection: 'loadInspection',
           setInspection: 'setInspection',
       }),
-      // ...mapActions({
-      //     loadAllocatedGroup: 'loadAllocatedGroup',
-      // }),
-      // updateAllocatedGroup: async function() {
-      //     console.log("updateAllocatedGroup");
-      //     this.errorResponse = "";
-      //     if (this.regionDistrictId) {
-      //         let allocatedGroupResponse = await this.loadAllocatedGroup({
-      //         region_district_id: this.regionDistrictId,
-      //         group_permission: this.groupPermission,
-      //         });
-      //         if (allocatedGroupResponse.ok) {
-      //             console.log(allocatedGroupResponse.body.allocated_group);
-      //             //this.allocatedGroup = Object.assign({}, allocatedGroupResponse.body.allocated_group);
-      //             Vue.set(this, 'allocatedGroup', allocatedGroupResponse.body.allocated_group);
-      //             this.allocated_group_id = allocatedGroupResponse.body.group_id;
-      //         } else {
-      //             // Display http error response on modal
-      //             this.errorResponse = allocatedGroupResponse.statusText;
-      //         }
-      //         // Display empty group error on modal
-      //         if (!this.errorResponse &&
-      //             this.allocatedGroup &&
-      //             this.allocatedGroup.length <= 1) {
-      //             this.errorResponse = 'This group has no members';
-      //         }
-      //     }
-      // },
-
+      ...mapActions({
+          loadAllocatedGroup: 'loadAllocatedGroup',
+      }),
+      updateAllocatedGroupId: async function() {
+          console.log("updateAllocatedGroup");
+          let allocated_group_id = null;
+          this.errorResponse = "";
+          if (this.regionDistrictId && this.groupPermission) {
+              let allocatedGroupResponse = await this.loadAllocatedGroup({
+              region_district_id: this.regionDistrictId,
+              group_permission: this.groupPermission,
+              });
+              if (allocatedGroupResponse.ok) {
+                  this.allocated_group_id = allocatedGroupResponse.body.group_id;
+              } else {
+                  // Display http error response on modal
+                  this.errorResponse = allocatedGroupResponse.statusText;
+              }
+          } else {
+              //this.allocatedGroup = [];
+          }
+      },
       ok: async function () {
           const response = await this.sendData();
           console.log(response);
@@ -185,6 +174,7 @@ export default {
           payload.append('details', this.workflowDetails);
           this.$refs.comms_log_file.commsLogId ? payload.append('inspection_comms_log_id', this.$refs.comms_log_file.commsLogId) : null;
           this.workflow_type ? payload.append('workflow_type', this.workflow_type) : null;
+          this.allocated_group_id ? payload.append('allocated_group_id', this.allocated_group_id) : null;
 
           let inspectionRes = await this.saveInspection({create: false, internal: true })
           if (inspectionRes.ok) {
@@ -211,12 +201,18 @@ export default {
       },
 
     },
-    created: async function() {
-        // if (this.inspection && this.inspection.id) {
-        //     this.inspection_type_id = this.inspection.inspection_type_id;
-        //     this.region_id = this.inspection.region_id;
-        //     this.district_id = this.inspection.district_id;
-        // }
+    mounted: async function() {
+        this.$nextTick(() => {
+            console.log("update group id")
+            this.updateAllocatedGroupId()
+        });
+    },
+    created: function() {
+        if (this.inspection && this.inspection.id) {
+            //this.inspection_type_id = this.inspection.inspection_type_id;
+            this.region_id = this.inspection.region_id;
+            this.district_id = this.inspection.district_id;
+        }
 
         // // ensure allocated group is current
         // await this.updateAllocatedGroup();

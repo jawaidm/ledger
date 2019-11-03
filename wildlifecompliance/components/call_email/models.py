@@ -7,16 +7,13 @@ from django.db.models import Max
 from django.utils.encoding import python_2_unicode_compatible
 from ledger.accounts.models import EmailUser, RevisionedMixin
 from ledger.licence.models import LicenceType
-from wildlifecompliance.components.main.models import CommunicationsLogEntry, UserAction, Document
-#from wildlifecompliance.components.organisations.models import Organisation
 from wildlifecompliance.components.main.models import (
         CommunicationsLogEntry,
         UserAction, 
-        Document,
+        Document
         )
-#from wildlifecompliance.components.main.related_items_utils import get_related_items
+from wildlifecompliance.components.main.related_item import can_close_record
 from wildlifecompliance.components.users.models import RegionDistrict, CompliancePermissionGroup
-#from wildlifecompliance.components.main.models import InspectionType
 
 logger = logging.getLogger(__name__)
 
@@ -156,30 +153,6 @@ class MapLayer(models.Model):
         return '{0}, {1}'.format(self.display_name, self.layer_name)
 
 
-class CasePriority(models.Model):
-    description = models.CharField(max_length=255, blank=True)
-
-    class Meta:
-        app_label = 'wildlifecompliance'
-        verbose_name = 'CM_CasePriority'
-        verbose_name_plural = 'CM_CasePriorities'
-
-    def __str__(self):
-        return self.description
-
-
-# class InspectionType(models.Model):
-#     description = models.CharField(max_length=255, null=True, blank=True)
-
-#     class Meta:
-#         app_label = 'wildlifecompliance'
-#         verbose_name = 'CM_InspectionType'
-#         verbose_name_plural = 'CM_InspectionTypes'
-
-#     def __str__(self):
-#         return self.description
-
-
 class CallEmail(RevisionedMixin):
     STATUS_DRAFT = 'draft'
     STATUS_OPEN = 'open'
@@ -187,6 +160,7 @@ class CallEmail(RevisionedMixin):
     STATUS_OPEN_INSPECTION = 'open_inspection'
     STATUS_OPEN_CASE = 'open_case'
     STATUS_CLOSED = 'closed'
+    STATUS_PENDING_CLOSURE = 'pending_closure'
     STATUS_CHOICES = (
         (STATUS_DRAFT, 'Draft'),
         (STATUS_OPEN, 'Open'),
@@ -194,6 +168,7 @@ class CallEmail(RevisionedMixin):
         (STATUS_OPEN_INSPECTION, 'Open (Inspection)'),
         (STATUS_OPEN_CASE, 'Open (Case)'),
         (STATUS_CLOSED, 'Closed'),
+        (STATUS_PENDING_CLOSURE, 'Pending Closure'),
     )
 
     status = models.CharField(
@@ -267,16 +242,6 @@ class CallEmail(RevisionedMixin):
         related_name='callemail_allocated_group', 
         null=True
     )
-    case_priority = models.ForeignKey(
-        CasePriority,
-        related_name='callemail_case_priority', 
-        null=True
-    )
-    #inspection_type = models.ForeignKey(
-     #   InspectionType,
-      #  related_name='callemail_inspection_type', 
-       # null=True
-    #)
     
     class Meta:
         app_label = 'wildlifecompliance'
@@ -344,25 +309,37 @@ class CallEmail(RevisionedMixin):
         self.save()
 
     def allocate_for_inspection(self, request):
-        self.status = self.STATUS_OPEN_INSPECTION
+        #self.status = self.STATUS_OPEN_INSPECTION
         self.log_user_action(
                 CallEmailUserAction.ACTION_ALLOCATE_FOR_INSPECTION.format(self.number), 
                 request)
-        self.save()
+        #self.save()
+        self.close(request)
 
     def allocate_for_case(self, request):
-        self.status = self.STATUS_OPEN_CASE
+        #self.status = self.STATUS_OPEN_CASE
         self.log_user_action(
-                CallEmailUserAction.ACTION_ALLOCATE_FOR_CASE.format(self.number), 
+                CallEmailUserAction.ACTION_ALLOCATE_FOR_CASE.format(self.number),
                 request)
-        self.save()
+        #self.save()
+        self.close(request)
 
     def close(self, request):
-        self.status = self.STATUS_CLOSED
-        self.log_user_action(
-                CallEmailUserAction.ACTION_CLOSE.format(self.number), 
-                request)
+        close_record, parents = can_close_record(self, request)
+        print("close_record")
+        print(close_record)
+        if close_record:
+            self.status = self.STATUS_CLOSED
+            self.log_user_action(
+                    CallEmailUserAction.ACTION_CLOSE.format(self.number), 
+                    request)
+        else:
+            self.status = self.STATUS_PENDING_CLOSURE
+            self.log_user_action(
+                    CallEmailUserAction.ACTION_PENDING_CLOSURE.format(self.number), 
+                    request)
         self.save()
+        # Call Email has no parents in pending_closure status
 
     def add_offence(self, request):
         self.log_user_action(
@@ -557,8 +534,9 @@ class CallEmailUserAction(UserAction):
     ACTION_FORWARD_TO_WILDLIFE_PROTECTION_BRANCH = "Forward Call/Email {} to Wildlife Protection Branch"
     ACTION_ALLOCATE_FOR_FOLLOWUP = "Allocate Call/Email {} for follow up"
     ACTION_ALLOCATE_FOR_INSPECTION = "Allocate Call/Email {} for inspection"
-    ACTION_ALLOCATE_FOR_CASE = "Allocate Call/Email {} for case"
-    ACTION_CLOSE = "Close case Call/Email {}"
+    ACTION_ALLOCATE_FOR_LEGAL_CASE = "Allocate Call/Email {} for case"
+    ACTION_CLOSE = "Close Call/Email {}"
+    ACTION_PENDING_CLOSURE = "Mark Call/Email {} as pending closure"
     ACTION_OFFENCE = "Create linked offence for Call/Email {}"
     ACTION_SANCTION_OUTCOME = "Create Sanction Outcome for Call/Email {}"
     ACTION_PERSON_SEARCH = "Linked person to Call/Email {}"

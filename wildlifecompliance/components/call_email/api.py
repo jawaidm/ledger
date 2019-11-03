@@ -39,7 +39,8 @@ from ledger.checkout.utils import calculate_excl_gst
 from datetime import datetime, timedelta, date
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
-from wildlifecompliance.components.main.api import save_location, process_generic_document
+from wildlifecompliance.components.main.api import save_location
+from wildlifecompliance.components.main.process_document import process_generic_document
 from wildlifecompliance.components.main.email import prepare_mail
 from wildlifecompliance.components.users.api import generate_dummy_email
 from wildlifecompliance.components.users.serializers import (
@@ -56,9 +57,6 @@ from wildlifecompliance.components.call_email.models import (
     Referrer,
     CallEmailUserAction,
     MapLayer,
-    CasePriority,
-    #InspectionType,
-    # ExternalOrganisation,
     CallEmailLogEntry,
     )
 from wildlifecompliance.components.call_email.serializers import (
@@ -83,7 +81,6 @@ from wildlifecompliance.components.call_email.serializers import (
     CallEmailDatatableSerializer,
     SaveUserAddressSerializer,
     #InspectionTypeSerializer,
-    CasePrioritySerializer,
     # ExternalOrganisationSerializer,
     CallEmailAllocatedGroupSerializer,
     UpdateAssignedToIdSerializer
@@ -804,17 +801,6 @@ class ReferrerViewSet(viewsets.ModelViewSet):
         return Referrer.objects.none()
 
 
-class CasePriorityViewSet(viewsets.ModelViewSet):
-    queryset = CasePriority.objects.all()
-    serializer_class = CasePrioritySerializer
-
-    def get_queryset(self):
-        user = self.request.user
-        if is_internal(self.request):
-            return CasePriority.objects.all()
-        return CasePriority.objects.none()
-
-
 class ReportTypeViewSet(viewsets.ModelViewSet):
     queryset = ReportType.objects.all()
     serializer_class = ReportTypeSerializer
@@ -863,6 +849,7 @@ class ReportTypeViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError(str(e))
    
 
+# TODO: check if the class below is used or not.  If no, remove.
 class LocationViewSet(viewsets.ModelViewSet):
     queryset = Location.objects.all()
     serializer_class = LocationSerializer
@@ -877,7 +864,6 @@ class LocationViewSet(viewsets.ModelViewSet):
     def optimised(self, request, *args, **kwargs):
         queryset = self.get_queryset().exclude(call_location__isnull=True)
         serializer = LocationSerializerOptimized(queryset, many=True)
-
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
@@ -910,6 +896,15 @@ class EmailUserViewSet(viewsets.ModelViewSet):
     serializer_class = EmailUserSerializer
     filter_backends = (filters.SearchFilter,)
     search_fields = ('first_name', 'last_name', 'email', 'phone_number', 'mobile_number', 'organisation')
+
+    def get_queryset(self):
+        exclude_staff = self.request.GET.get('exclude_staff')
+        if is_internal(self.request):
+            if exclude_staff == 'true':
+                return EmailUser.objects.filter(is_staff=False)
+            else:
+                return EmailUser.objects.all()
+        return EmailUser.objects.none()
 
 
 class MapLayerViewSet(viewsets.ModelViewSet):

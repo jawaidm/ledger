@@ -270,6 +270,11 @@ export const callemailStore = {
         updateRelatedItems(state, related_items) {
             Vue.set(state.call_email, 'related_items', related_items);
         },
+        updateCaller(state, data) {
+            if (data.data_type === 'individual') {
+                Vue.set(state.call_email, 'email_user_id', data.id);
+            }
+        },
     },
     actions: {
         async loadCallEmail({ dispatch, commit }, { call_email_id }) {
@@ -283,7 +288,7 @@ export const callemailStore = {
                     );
 
                 /* Set CallEmail object */
-                commit("updateCallEmail", returnedCallEmail.body);
+                await dispatch("setCallEmail", returnedCallEmail.body);
 
                 for (let form_data_record of returnedCallEmail.body.data) {
                     await dispatch("setFormValue", {
@@ -317,7 +322,7 @@ export const callemailStore = {
                 }
             }
         },
-        async saveCallEmail({ dispatch, state, rootGetters}, { route, crud, internal }) {
+        async saveCallEmail({ dispatch, state, rootGetters}, { crud, internal }) {
             console.log("saveCallEmail");
             console.log("internal");
             console.log(internal);
@@ -380,7 +385,7 @@ export const callemailStore = {
                 } else {
                     await swal("Error", "There was an error saving the record", "error");
                 }
-                return window.location.href = "/internal/call_email/";
+                //return window.location.href = "/internal/call_email/";
             }
             if (crud === 'duplicate') {
                 return window.location.href = "/internal/call_email/" + callId;
@@ -392,11 +397,8 @@ export const callemailStore = {
                     return savedCallEmail;
                 }
             }
-            if (route) {
-                return window.location.href = "/internal/call_email/";
-            } else {
-                return callId;
-            }
+            //return callId;
+            return savedCallEmail;
         },
         setAllocatedGroupList({ commit }, data) {
             commit('updateAllocatedGroupList', data);
@@ -472,6 +474,9 @@ export const callemailStore = {
         },
         setRelatedItems({ commit }, related_items ) {
             commit("updateRelatedItems", related_items);
+        },
+        setCaller({ commit }, data) {
+            commit("updateCaller", data);
         },
     },
 };

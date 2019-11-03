@@ -6,7 +6,10 @@ from wildlifecompliance.components.users.models import (
         CompliancePermissionGroup, 
         ComplianceManagementUserPreferences,
         )
+from confy import env
 
+DEBUG = env('DEBUG', False)
+BASIC_AUTH = env('BASIC_AUTH', False)
 
 def belongs_to(user, group_name):
     """
@@ -68,8 +71,10 @@ def is_customer(request):
 
 
 def is_internal(request):
-    return is_departmentUser(request)
-
+    if DEBUG and BASIC_AUTH:
+        return True
+    else:
+        return is_departmentUser(request)
 
 def is_officer(request):
     licence_officer_groups = [group.name for group in ActivityPermissionGroup.objects.filter(

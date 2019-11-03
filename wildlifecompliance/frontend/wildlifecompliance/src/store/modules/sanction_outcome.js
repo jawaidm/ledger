@@ -23,6 +23,13 @@ export const sanctionOutcomeStore = {
             if (state.sanction_outcome.date_of_issue) {
                 state.sanction_outcome.date_of_issue = moment(state.sanction_outcome.date_of_issue, 'YYYY-MM-DD').format('DD/MM/YYYY');
             }
+
+            let sanctionOutcomeDocumentUrl = helpers.add_endpoint_join(
+                api_endpoints.sanction_outcome,
+                state.sanction_outcome.id + "/process_default_document/"
+                )
+            Vue.set(state.sanction_outcome, 'sanctionOutcomeDocumentUrl', sanctionOutcomeDocumentUrl); 
+
             let commsLogsDocumentUrl = helpers.add_endpoint_join(
                 api_endpoints.sanction_outcome,
                 state.sanction_outcome.id + "/process_comms_log_document/"
@@ -53,60 +60,29 @@ export const sanctionOutcomeStore = {
                 console.log(err);
             }
         },
-        async saveSanctionOutcome({ dispatch, state }, { route, crud, internal }) {
-            console.log(crud)
-            let sanctionOutcomeId = null;
-            let savedSanctionOutcome = null;
-            try {
-                let fetchUrl = null;
-                if (crud === 'create' || crud === 'duplicate') {
-                    fetchUrl = api_endpoints.sanction_outcome;
-                } else {
-                    fetchUrl = helpers.add_endpoint_join(
-                        api_endpoints.sanction_outcome, 
-                        state.sanction_outcome.id + "/sanction_outcome_save/"
-                        )
-                }
+        async saveSanctionOutcome({ dispatch, state }) {
+            console.log('saveSanctionOutcome');
+            // Construct url endpoint
+            let putUrl = helpers.add_endpoint_join(api_endpoints.sanction_outcome, state.sanction_outcome.id + '/');
 
-                let payload = {};
-                Object.assign(payload, state.sanction_outcome);
-                if (crud == 'duplicate') {
-                    payload.id = null;
-                    payload.location_id = null;
-                    if (payload.location) {
-                        payload.location.id = null;
-                    }
-                }
+            // Construct payload to store data to be sent
+            let payload = {};
+            Object.assign(payload, state.sanction_outcome);
 
-                savedSanctionOutcome = await Vue.http.post(fetchUrl, payload);
-                await dispatch("setSanctionOutcome", savedSanctionOutcome.body);
-                sanctionOutcomeId = savedSanctionOutcome.body.id;
+            if(payload.date_of_issue){
+                payload.date_of_issue = moment(payload.date_of_issue, "DD/MM/YYYY").format("YYYY-MM-DD");
+            }
 
-            } catch (err) {
-                console.log(err);
-                if (internal) {
-                    // return "There was an error saving the record";
-                    return err;
-                } else {
-                    await swal("Error", "There was an error saving the record", "error");
-                }
-                return window.location.href = "/internal/sanction_outcome/";
-            }
-            if (crud === 'duplicate') {
-                return window.location.href = "/internal/sanction_outcome/" + sanctionOutcomeId;
-            }
-            else if (crud !== 'create') {
-                if (!internal) {
-                    await swal("Saved", "The record has been saved", "success");
-                } else {
-                    return savedSanctionOutcome;
-                }
-            }
-            if (route) {
-                return window.location.href = "/internal/sanction_outcome/";
-            } else {
-                return sanctionOutcomeId;
-            }
+            // format 'type'
+            payload.type = payload.type.id;
+
+            let savedSanctionOutcome = await Vue.http.put(putUrl, payload);
+
+            // Update sanction outcome in the vuex store
+            await dispatch("setSanctionOutcome", savedSanctionOutcome.body);
+
+            // Return the saved data just in case needed
+            return savedSanctionOutcome;
         },
         setSanctionOutcome({ commit, }, sanction_outcome) {
             commit("updateSanctionOutcome", sanction_outcome);

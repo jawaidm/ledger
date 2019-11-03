@@ -32,6 +32,8 @@ from wildlifecompliance.components.offence import api as offence_api
 from wildlifecompliance.components.inspection import api as inspection_api
 from wildlifecompliance.components.sanction_outcome import api as sanction_outcome_api
 from wildlifecompliance.components.main import api as main_api
+from wildlifecompliance.components.wc_payments import views as payment_views
+from wildlifecompliance.components.legal_case import api as legal_case_api
 
 from wildlifecompliance.utils import are_migrations_running
 
@@ -72,6 +74,7 @@ router.register(r'organisation_requests_paginated',
 router.register(r'organisation_contacts', org_api.OrganisationContactViewSet)
 router.register(r'my_organisations', org_api.MyOrganisationsViewSet)
 router.register(r'users', users_api.UserViewSet)
+router.register(r'compliance_management_users', users_api.ComplianceManagementUserViewSet)
 router.register(r'users_paginated', users_api.UserPaginatedViewSet)
 router.register(r'profiles', users_api.ProfileViewSet)
 router.register(r'my_profiles', users_api.MyProfilesViewSet)
@@ -88,7 +91,7 @@ router.register(r'search_organisation', offence_api.SearchOrganisation)
 router.register(r'map_layers', call_email_api.MapLayerViewSet)
 router.register(r'compliancepermissiongroup', users_api.CompliancePermissionGroupViewSet)
 router.register(r'region_district', users_api.RegionDistrictViewSet)
-router.register(r'case_priorities', call_email_api.CasePriorityViewSet)
+router.register(r'legal_case_priorities', legal_case_api.LegalCasePriorityViewSet)
 router.register(r'inspection_types', inspection_api.InspectionTypeViewSet)
 # router.register(r'offence', offence_api.OffenceViewSet)
 router.register(r'call_email_paginated', call_email_api.CallEmailPaginatedViewSet)
@@ -98,6 +101,9 @@ router.register(r'sanction_outcome', sanction_outcome_api.SanctionOutcomeViewSet
 router.register(r'sanction_outcome_paginated', sanction_outcome_api.SanctionOutcomePaginatedViewSet)
 router.register(r'offence', offence_api.OffenceViewSet)
 router.register(r'offence_paginated', offence_api.OffencePaginatedViewSet)
+router.register(r'temporary_document', main_api.TemporaryDocumentCollectionViewSet)
+router.register(r'legal_case', legal_case_api.LegalCaseViewSet)
+router.register(r'legal_case_paginated', legal_case_api.LegalCasePaginatedViewSet)
 
 api_patterns = [url(r'^api/my_user_details/$',
                     users_api.GetMyUserDetails.as_view(),
@@ -176,16 +182,13 @@ urlpatterns = [
 
     # following url is defined so that to include url path when sending
     # application emails to users
-    url(r'^internal/application/(?P<application_pk>\d+)/$', views.ApplicationView.as_view(),
-        name='internal-application-detail'),
-    url(r'^application_submit/submit_with_invoice/',
-        ApplicationSuccessView.as_view(),
-        name='external-application-success-invoice'),
-    url(r'^application/finish_licence_fee_payment/',
-        LicenceFeeSuccessView.as_view(),
-        name='external-licence-fee-success-invoice'),
+    url(r'^internal/application/(?P<application_pk>\d+)/$', views.ApplicationView.as_view(), name='internal-application-detail'),
+    url(r'^application_submit/submit_with_invoice/', ApplicationSuccessView.as_view(), name='external-application-success-invoice'),
+    url(r'^application/finish_licence_fee_payment/', LicenceFeeSuccessView.as_view(), name='external-licence-fee-success-invoice'),
 
-    # following url is defined so that to include url path when sending
+    # url(r'^infringement_penalty_submit/submit_with_invoice/', InfringementPenaltySuccessView.as_view(), name='external-application-success-invoice'),
+
+                  # following url is defined so that to include url path when sending
     # call_email emails to users
     url(r'^internal/call_email/(?P<call_email_id>\d+)/$', views.ApplicationView.as_view(),
         name='internal-call-email-detail'),
@@ -203,13 +206,22 @@ urlpatterns = [
     url(r'^internal/offence/(?P<offence_id>\d+)/$', views.ApplicationView.as_view(),
         name='internal-offence-detail'),
 
+    # following url is defined so that to include url path when sending
+    # inspection emails to users
+    url(r'^internal/legal_case/(?P<legal_case_id>\d+)/$', views.ApplicationView.as_view(),
+        name='internal-legal-case-detail'),
+
     # url(r'^export/xls/$', application_views.export_applications, name='export_applications'),
     url(r'^export/pdf/$', application_views.pdflatex, name='pdf_latex'),
     url(r'^mgt-commands/$',
         views.ManagementCommandsView.as_view(),
         name='mgt-commands'),
 
-] + ledger_patterns
+    # payment related urls
+    url(r'^infringement_penalty/(?P<sanction_outcome_id>\d+)/$', payment_views.InfringementPenaltyView.as_view(), name='infringement_penalty'),
+    url(r'^success/fee/$', payment_views.InfringementPenaltySuccessView.as_view(), name='penalty_success'),
+
+              ] + ledger_patterns
 
 if not are_migrations_running():
     CollectorManager()

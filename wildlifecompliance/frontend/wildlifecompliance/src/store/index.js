@@ -28,6 +28,9 @@ import {
 import {
 	sanctionOutcomeStore
 } from './modules/sanction_outcome';
+import {
+	legalCaseStore
+} from './modules/legal_case';
 
 Vue.use(Vuex);
 
@@ -45,5 +48,6 @@ export default new Vuex.Store({
 		offenceStore: offenceStore,
 		inspectionStore: inspectionStore,
 		sanctionOutcomeStore: sanctionOutcomeStore,
+		legalCaseStore: legalCaseStore,
 	}
 });

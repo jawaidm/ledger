@@ -166,6 +166,80 @@ class UserProfileSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
+class ComplianceManagementSaveUserAddressSerializer(serializers.ModelSerializer):
+    #user_id = serializers.IntegerField(
+    #    required=False, write_only=True, allow_null=True)
+    line1 = serializers.CharField(allow_blank=True)  # We need allow_blank=True otherwise blank is not allowed by blank=False setting in the model
+    postcode = serializers.CharField(allow_blank=True)  # We need allow_blank=True otherwise blank is not allowed by blank=False setting in the model
+    locality = serializers.CharField(allow_blank=True)  # We need allow_blank=True otherwise blank is not allowed by blank=False setting in the model
+    country = serializers.CharField(allow_blank=True)  # We need allow_blank=True otherwise blank is not allowed by blank=False setting in the model
+    user_id = serializers.IntegerField(required=False, write_only=True, allow_null=True)
+
+    class Meta:
+        model = Address
+        fields = (
+            'id',
+            'line1',
+            #'line2',
+            #'line3',
+            'locality',
+            'state',
+            'country',
+            'postcode',
+            'user_id',
+        )
+        read_only_fields = ('id', )
+
+
+class ComplianceManagementSaveUserSerializer(serializers.ModelSerializer):
+    residential_address_id = serializers.IntegerField(
+        required=False, write_only=True, allow_null=True)
+
+    class Meta:
+        model = EmailUser
+        fields = (
+            'id',
+            'last_name',
+            'first_name',
+            'dob',
+            'email',
+            'residential_address_id',
+            'phone_number',
+            'mobile_number',
+        )
+        read_only_fields = ('id',)
+
+
+class ComplianceManagementUserSerializer(serializers.ModelSerializer):
+    #residential_address = UserAddressSerializer(required=False)
+    residential_address = ComplianceManagementSaveUserAddressSerializer(
+            required=False,
+            read_only=True)
+    #dob = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EmailUser
+        fields = (
+            'id',
+            'last_name',
+            'first_name',
+            'dob',
+            'email',
+            'residential_address',
+            'residential_address_id',
+            'phone_number',
+            'mobile_number',
+        )
+        #read_only_fields = ('id',)
+
+    #def get_dob(self, obj):
+    #    dob = None
+    #    if obj.dob:
+    #        dob = obj.dob.strftime('%d/%m/%Y')
+    #    print("dob")
+    #    print(dob)
+    #    return dob
+
 
 class UserSerializer(serializers.ModelSerializer):
     residential_address = UserAddressSerializer()

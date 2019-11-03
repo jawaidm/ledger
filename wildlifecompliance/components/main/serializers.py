@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from wildlifecompliance.components.main.models import CommunicationsLogEntry
+from wildlifecompliance.components.main.models import CommunicationsLogEntry, TemporaryDocumentCollection
 from ledger.accounts.models import EmailUser
 
 
@@ -41,6 +41,16 @@ class SearchKeywordSerializer(serializers.Serializer):
         required=False
     )
 
+
 class SearchReferenceSerializer(serializers.Serializer):
     url_string = serializers.CharField()
 
+
+#class TemporaryDocumentSerializer(serializers.Serializer):
+#    temp_document_collection_id = serializers.IntegerField()
+#    uploaded_file = serializers.FileField(max_length=255)
+
+class TemporaryDocumentCollectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TemporaryDocumentCollection
+        fields = ('id',)

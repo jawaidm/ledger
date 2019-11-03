@@ -7,8 +7,8 @@
                 <div class="form-group">
                     <label for="">Type</label>
                     <select class="form-control" v-model="filterInspectionType">
-                        <option v-for="option in inspectionTypes" :value="option.description" v-bind:key="option.id">
-                            {{ option.description }} 
+                        <option v-for="option in inspectionTypes" :value="option.inspection_type" v-bind:key="option.id">
+                            {{ option.inspection_type }} 
                         </option>
                     </select>
                 </div>
@@ -61,6 +61,11 @@
             </div>
         </div>
         </FormSection>
+
+        <FormSection :label="`Location`" :Index="`1`">
+            <MapLocations />
+        </FormSection>
+
         <div v-if="inspectionInitialised">
             <InspectionModal ref="add_inspection"  v-bind:key="createInspectionBindId"/>
         </div>
@@ -75,6 +80,7 @@
     import { mapState, mapGetters, mapActions, mapMutations } from "vuex";
     import FormSection from "@/components/forms/section_toggle.vue";
     import InspectionModal from "./create_inspection_modal.vue";
+    import MapLocations from "./inspection_locations.vue";
     
     export default {
         name: 'InspectionTableDash',
@@ -158,7 +164,7 @@
                             orderable: true,
                             mRender: function (data, type, full) {
                                 if (data) {
-                                    return data.description;
+                                    return data.inspection_type;
                                 } else {
                                     return '';
                                 }
@@ -246,7 +252,9 @@
                 {
                 id: "all",
                 description: "All",
+                inspection_type: "All",
                 });
+            console.log(this)
 
         },
         watch: {
@@ -270,6 +278,7 @@
             datatable,
             FormSection,
             InspectionModal,
+            MapLocations,
         },
         computed: {
         },

@@ -8,6 +8,7 @@
                     <option value="inspection">Inspection</option>
                     <option value="offence">Offence</option>
                     <option value="sanction_outcome">Sanction Outcome</option>
+                    <option value="legal_case">Case</option>
                 </select>
             </div>
             <div class="col-sm-4">
@@ -61,7 +62,13 @@ export default {
         readonlyForm: {
             required: false,
             default: false
-        }
+        },
+        displayedEntityType: {
+            type: String
+        },
+        displayedEntityId: {
+            type: Number
+        },
     },
     computed: {
         csrf_token: function() {
@@ -166,7 +173,9 @@ export default {
             let payload = {
                     'csrfmiddlewaretoken': this.csrf_token,
                     'selectedEntity': this.selectedEntity,
-                    'searchText': searchText
+                    'searchText': searchText,
+                    'displayedEntityType': this.displayedEntityType,
+                    'displayedEntityId': this.displayedEntityId,
             }
 
             this.ajax_weak_links = $.ajax({

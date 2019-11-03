@@ -4,36 +4,75 @@ from django.contrib.auth.models import Permission
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
+from django.db.models.signals import post_save
+
 from ledger.accounts.models import EmailUser, RevisionedMixin
-from wildlifecompliance.components.main import get_next_value
 from wildlifecompliance.components.main.models import Document, UserAction, CommunicationsLogEntry
-from wildlifecompliance.components.offence.models import Offence, Offender, SectionRegulation, AllegedOffence
+from wildlifecompliance.components.main.related_item import can_close_record
+from wildlifecompliance.components.offence.models import Offence, Offender, AllegedOffence
+from wildlifecompliance.components.section_regulation.models import SectionRegulation
 from wildlifecompliance.components.users.models import RegionDistrict, CompliancePermissionGroup
+
+
+class SanctionOutcomeActiveManager(models.Manager):
+    def get_query_set(self):
+        return super(SanctionOutcomeActiveManager, self).get_query_set().exclude(
+            Q(status=SanctionOutcome.STATUS_CLOSED) |
+            Q(status=SanctionOutcome.STATUS_WITHDRAWN) |
+            Q(status=SanctionOutcome.STATUS_DECLINED)
+        )
+
+
+class SanctionOutcomeExternalManager(models.Manager):
+    def get_query_set(self):
+        return super(SanctionOutcomeExternalManager, self).get_query_set().filter(
+            Q(offender__removed=False) &
+            Q(status__in=(SanctionOutcome.STATUS_AWAITING_PAYMENT,
+                          SanctionOutcome.STATUS_AWAITING_REMEDIATION_ACTIONS,
+                          SanctionOutcome.STATUS_CLOSED)))
 
 
 class SanctionOutcome(models.Model):
     WORKFLOW_SEND_TO_MANAGER = 'send_to_manager'
     WORKFLOW_ENDORSE = 'endorse'
     WORKFLOW_DECLINE = 'decline'
-    WORKFLOW_WITHDRAW = 'withdraw'
+    WORKFLOW_WITHDRAW_BY_MANAGER = 'withdraw_by_manager'
+    WORKFLOW_WITHDRAW_BY_INC = 'withdraw_by_inc'  # INC: infringement notice coordinator
     WORKFLOW_RETURN_TO_OFFICER = 'return_to_officer'
     WORKFLOW_CLOSE = 'close'
 
+    PAYMENT_STATUS_UNPAID = 'unpaid'
+    PAYMENT_STATUS_PAID = 'paid'
+    PAYMENT_STATUS_CHOICES = (
+        (PAYMENT_STATUS_PAID, 'Paid'),
+        (PAYMENT_STATUS_UNPAID, 'Unpaid')
+    )
     STATUS_DRAFT = 'draft'
     STATUS_AWAITING_ENDORSEMENT = 'awaiting_endorsement'
     STATUS_AWAITING_PAYMENT = 'awaiting_payment'
     STATUS_AWAITING_REVIEW = 'awaiting_review'
-    STATUS_AWAITING_AMENDMENT = 'awaiting_amendment'
+    STATUS_AWAITING_REMEDIATION_ACTIONS = 'awaiting_remediation_actions'
     STATUS_DECLINED = 'declined'
     STATUS_WITHDRAWN = 'withdrawn'
     STATUS_CLOSED = 'closed'
-
+    STATUS_CHOICES_FOR_EXTERNAL = (
+        (STATUS_AWAITING_PAYMENT, 'Awaiting Payment'),
+        (STATUS_AWAITING_REMEDIATION_ACTIONS, 'Awaiting Remediation Actions'),
+        # (STATUS_DECLINED, 'Declined'),
+        # (STATUS_WITHDRAWN, 'Withdrawn'),
+        (STATUS_CLOSED, 'closed'),
+    )
+    FINAL_STATUSES = (STATUS_DECLINED, STATUS_CLOSED, STATUS_WITHDRAWN,)
     STATUS_CHOICES = (
         (STATUS_DRAFT, 'Draft'),
         (STATUS_AWAITING_ENDORSEMENT, 'Awaiting Endorsement'),
-        (STATUS_AWAITING_PAYMENT, 'Awaiting Payment'),
+        (STATUS_AWAITING_PAYMENT, 'Awaiting Payment'),  # TODO: implement pending closuer of SanctionOutcome with type RemediationActions
+                                                        # This is pending closure status
         (STATUS_AWAITING_REVIEW, 'Awaiting Review'),
-        (STATUS_AWAITING_AMENDMENT, 'Awaiting Amendment'),
+        (STATUS_AWAITING_REMEDIATION_ACTIONS, 'Awaiting Remediation Actions'),  # TODO: implement pending closuer of SanctionOutcome with type RemediationActions
+                                                                                # This is pending closure status
+                                                                                # Once all the remediation actions are closed, this status should become closed...
         (STATUS_DECLINED, 'Declined'),
         (STATUS_WITHDRAWN, 'Withdrawn'),
         (STATUS_CLOSED, 'closed'),
@@ -55,15 +94,19 @@ class SanctionOutcome(models.Model):
 
     type = models.CharField(max_length=30, choices=TYPE_CHOICES, blank=True,)
     status = models.CharField(max_length=40, choices=STATUS_CHOICES, default=__original_status,)
+    payment_status = models.CharField(max_length=40, choices=PAYMENT_STATUS_CHOICES, blank=True,)
 
     region = models.ForeignKey(RegionDistrict, related_name='sanction_outcome_region', null=True,)
     district = models.ForeignKey(RegionDistrict, related_name='sanction_outcome_district', null=True,)
 
     identifier = models.CharField(max_length=50, blank=True,)
     lodgement_number = models.CharField(max_length=50, blank=True,)
-    offence = models.ForeignKey(Offence, related_name='sanction_outcome_offence', null=True, on_delete=models.SET_NULL,)
+    offence = models.ForeignKey(Offence, related_name='offence_sanction_outcomes', null=True, on_delete=models.SET_NULL,)
     offender = models.ForeignKey(Offender, related_name='sanction_outcome_offender', null=True, on_delete=models.SET_NULL,)
+
+    # TODO: this field is not probably used anymore.
     alleged_offences = models.ManyToManyField(SectionRegulation, blank=True, related_name='sanction_outcome_alleged_offences')
+
     alleged_committed_offences = models.ManyToManyField(AllegedOffence, related_name='sanction_outcome_alleged_committed_offences', through='AllegedCommittedOffence')
     issued_on_paper = models.BooleanField(default=False) # This is always true when type is letter_of_advice
     paper_id = models.CharField(max_length=50, blank=True,)
@@ -78,28 +121,13 @@ class SanctionOutcome(models.Model):
     # Only editable when issued on paper. Otherwise pre-filled with date/time when issuing electronically.
     date_of_issue = models.DateField(null=True, blank=True)
     time_of_issue = models.TimeField(null=True, blank=True)
+    penalty_amount =  models.DecimalField(max_digits=8, decimal_places=2, default='0.00')  # amount of the penalty is copied form the section_regulation
+                                                                                   # according to the infringement notice issue date
 
-    def clean(self):
-        if self.offender and not self.offence:
-            raise ValidationError('An offence must be selected to save offender(s).')
+    objects = models.Manager()
+    objects_active = SanctionOutcomeActiveManager()
+    objects_for_external = SanctionOutcomeExternalManager()
 
-        if self.alleged_committed_offences.all().count() and not self.offence:
-            raise ValidationError('An offence must be selected to save alleged offence(s).')
-
-        # validate if offender is registered under the offence
-        if self.offender not in self.offence.offender_set:
-            raise ValidationError('Offender must be registered under the selected offence.')
-
-        # validate if alleged_offences are registered under the offence
-        # for alleged_offence in self.alleged_committed_offences.all():
-        #     if alleged_offence not in self.offence.alleged_offences:
-        #         raise ValidationError('Alleged offence must be registered under the selected offence.')
-
-        # make issued_on_papaer true whenever the type is letter_of_advice
-        if self.type == self.TYPE_LETTER_OF_ADVICE:
-            self.issued_on_paper = True
-
-        super(SanctionOutcome, self).clean()
 
     @property
     def prefix_lodgement_nubmer(self):
@@ -126,14 +154,23 @@ class SanctionOutcome(models.Model):
 
     def save(self, *args, **kwargs):
         super(SanctionOutcome, self).save(*args, **kwargs)
+
+        need_save = False
+
+        # Construct lodgement_number
         if not self.lodgement_number:
             self.lodgement_number = self.prefix_lodgement_nubmer + '{0:06d}'.format(self.pk)
-            self.save()
+            need_save = True
 
-        if self.__original_status != self.status:
-            # status changed
-            if self.status == self.STATUS_DRAFT:
-                pass
+        # No documents are attached when issued_on_paper=False
+        if not self.issued_on_paper:
+            if self.documents.all().count():
+                print('[Warn] This sanction outcome has not been issued on paper, but has documents.')
+                # self.documents.all().delete()
+                # need_save = True
+
+        if need_save:
+            self.save()  # Be carefull, this might lead to the infinite loop
 
         self.__original_status = self.status
 
@@ -174,9 +211,12 @@ class SanctionOutcome(models.Model):
         elif workflow_type == SanctionOutcome.WORKFLOW_RETURN_TO_OFFICER:
             codename = 'officer'
             per_district = True
-        elif workflow_type == SanctionOutcome.WORKFLOW_WITHDRAW:
-            codename = '---'
+        elif workflow_type == SanctionOutcome.WORKFLOW_WITHDRAW_BY_INC:
+            codename = 'infringement_notice_coordinator'
             per_district = False
+        elif workflow_type == SanctionOutcome.WORKFLOW_WITHDRAW_BY_MANAGER:
+            codename = 'manager'
+            per_district = True
         elif workflow_type == SanctionOutcome.WORKFLOW_CLOSE:
             codename = '---'
             per_district = False
@@ -208,14 +248,29 @@ class SanctionOutcome(models.Model):
         self.save()
 
     def endorse(self, request):
-        self.status = self.STATUS_AWAITING_PAYMENT
+        if not self.issued_on_paper:
+            self.date_of_issue = datetime.datetime.now().date()
+            self.time_of_issue = datetime.datetime.now().time()
+        elif not self.date_of_issue:
+            raise ValidationError('Sanction outcome cannot be endorsed without setting date of issue.')
+
+        if self.type == SanctionOutcome.TYPE_INFRINGEMENT_NOTICE:
+            self.status = SanctionOutcome.STATUS_AWAITING_PAYMENT
+            self.payment_status = SanctionOutcome.PAYMENT_STATUS_UNPAID
+            self.penalty_amount = self.retrieve_penalty_amount_by_date()
+
+        elif self.type in (SanctionOutcome.TYPE_CAUTION_NOTICE, SanctionOutcome.TYPE_LETTER_OF_ADVICE):
+            self.status = SanctionOutcome.STATUS_CLOSED
+            self.save()  # This makes sure this sanction outcome status sets to 'closed'
+
+        elif self.type == SanctionOutcome.TYPE_REMEDIATION_NOTICE:
+            self.status = SanctionOutcome.STATUS_AWAITING_REMEDIATION_ACTIONS
+
         new_group = SanctionOutcome.get_compliance_permission_group(self.regionDistrictId, SanctionOutcome.WORKFLOW_ENDORSE)
         self.allocated_group = new_group
-        current_datetime = datetime.datetime.now()
-        self.date_of_issue = current_datetime.date()
-        self.time_of_issue = current_datetime.time()
-        self.log_user_action(SanctionOutcomeUserAction.ACTION_ENDORSE.format(self.lodgement_number), request)
         self.save()
+
+        self.log_user_action(SanctionOutcomeUserAction.ACTION_ENDORSE.format(self.lodgement_number), request)
 
     def decline(self, request):
         self.status = self.STATUS_DECLINED
@@ -225,18 +280,32 @@ class SanctionOutcome(models.Model):
         self.save()
 
     def return_to_officer(self, request):
-        self.status = self.STATUS_AWAITING_AMENDMENT
+        self.status = self.STATUS_DRAFT
         new_group = SanctionOutcome.get_compliance_permission_group(self.regionDistrictId, SanctionOutcome.WORKFLOW_RETURN_TO_OFFICER)
         self.allocated_group = new_group
         self.log_user_action(SanctionOutcomeUserAction.ACTION_RETURN_TO_OFFICER.format(self.lodgement_number), request)
         self.save()
 
-    def withdraw(self, request):
+    def withdraw_by_inc(self, request):
         self.status = self.STATUS_WITHDRAWN
-        new_group = SanctionOutcome.get_compliance_permission_group(self.regionDistrictId, SanctionOutcome.WORKFLOW_WITHDRAW)
+        new_group = SanctionOutcome.get_compliance_permission_group(self.regionDistrictId, SanctionOutcome.WORKFLOW_WITHDRAW_BY_INC)
         self.allocated_group = new_group
         self.log_user_action(SanctionOutcomeUserAction.ACTION_WITHDRAW.format(self.lodgement_number), request)
         self.save()
+
+    def withdraw_by_namager(self, request):
+        self.status = self.STATUS_WITHDRAWN
+        new_group = SanctionOutcome.get_compliance_permission_group(self.regionDistrictId, SanctionOutcome.WORKFLOW_WITHDRAW_BY_MANAGER)
+        self.allocated_group = new_group
+        self.log_user_action(SanctionOutcomeUserAction.ACTION_WITHDRAW.format(self.lodgement_number), request)
+        self.save()
+
+    def retrieve_penalty_amount_by_date(self):
+        qs_aco = AllegedCommittedOffence.objects.filter(Q(sanction_outcome=self) & Q(included=True))
+        if qs_aco.count() != 1:  # Only infringement notice can have penalty. Infringement notice can have only one alleged offence.
+            raise ValidationError('There are multiple alleged committed offences in this sanction outcome.')
+        else:
+            return qs_aco.first().retrieve_penalty_amount_by_date(self.date_of_issue)
 
     class Meta:
         app_label = 'wildlifecompliance'
@@ -245,23 +314,36 @@ class SanctionOutcome(models.Model):
         ordering = ['-id']
 
 
+def perform_can_close_record(sender, instance, **kwargs):
+    # Trigger the close() function of each parent entity of this sanction outcome
+    if instance.status in (SanctionOutcome.FINAL_STATUSES):
+        close_record, parents = can_close_record(instance)
+        for parent in parents:
+            if parent.status == 'pending_closure':
+                parent.close()
+
+post_save.connect(perform_can_close_record, sender=SanctionOutcome)
+
+
 class AllegedCommittedOffence(RevisionedMixin):
     alleged_offence = models.ForeignKey(AllegedOffence, null=False,)
     sanction_outcome = models.ForeignKey(SanctionOutcome, null=False,)
     included = models.BooleanField(default=True)  # True means sanction_outcome is included in the sanction_outcome
-    reason_for_removal = models.TextField(blank=True)
-    removed = models.BooleanField(default=False)  # Never make this field False once becomes True. Rather you have to create another record making this field False.
-    removed_by = models.ForeignKey(EmailUser, null=True, related_name='alleged_committed_offence_removed_by')
+
+    # TODO: following three fields are not used probably
+    # reason_for_removal = models.TextField(blank=True)
+    # removed = models.BooleanField(default=False)  # Never make this field False once becomes True. Rather you have to create another record making this field False.
+    # removed_by = models.ForeignKey(EmailUser, null=True, related_name='alleged_committed_offence_removed_by')
+    # objects = models.Manager()
+    # objects_active = AllegedCommittedOffenceActiveManager()
+
+    def retrieve_penalty_amount_by_date(self, date_of_issue):
+        return self.alleged_offence.retrieve_penalty_amount_by_date(date_of_issue)
 
     class Meta:
         app_label = 'wildlifecompliance'
         verbose_name = 'CM_AllegedCommittedOffence'
         verbose_name_plural = 'CM_AllegedCommittedOffences'
-
-    # def clean(self):
-    #     raise ValidationError('Error test')
-    #     if not self.included and not self.removed:
-    #         raise ValidationError('Alleged offence: %s is not included, but is going to be removed' % self.alleged_offence)
 
 
 class RemediationAction(models.Model):
@@ -314,23 +396,24 @@ class SanctionOutcomeCommsLogEntry(CommunicationsLogEntry):
         app_label = 'wildlifecompliance'
 
 
-class SanctionOutcomeUserAction(UserAction):
+class SanctionOutcomeUserAction(models.Model):
     ACTION_SEND_TO_MANAGER = "Send Sanction Outcome {} to manager"
+    ACTION_SAVE = "Save Sanction Outcome {}"
     ACTION_ENDORSE = "Endorse Sanction Outcome {}"
     ACTION_DECLINE = "Decline Sanction Outcome {}"
     ACTION_RETURN_TO_OFFICER = "Request amendment for Sanction Outcome {}"
     ACTION_WITHDRAW = "Withdraw Sanction Outcome {}"
-    # ACTION_EXTEND_DUE_DATE = "Extend Sanction Outcome {} Payment Due Date"
-    # ACTION_SEND_TO_DOT = "Send Sanction Outcome {} to Department of Transport"
-    # ACTION_SEND_TO_FINES_ENFORCEMENT_UNIT = "Send Sanction Outcome {} to Fined Enforcement Unit"
-    # ACTION_ESCALATE_FOR_WITHDRAWAL = "Escalate Sanction Outcome {} for Withdrawal"
-    # ACTION_RETURN_TO_INFRINGEMENT_NOTICE_COORDINATOR = "Return Sanction Outcome {} to Infringement Notice Coordinator"
     ACTION_CLOSE = "Close Sanction Outcome {}"
     ACTION_ADD_WEAK_LINK = "Create manual link between Sanction Outcome: {} and {}: {}"
     ACTION_REMOVE_WEAK_LINK = "Remove manual link between Sanction Outcome: {} and {}: {}"
     ACTION_REMOVE_ALLEGED_COMMITTED_OFFENCE = "Remove alleged committed offence: {}"
     ACTION_RESTORE_ALLEGED_COMMITTED_OFFENCE = "Restore alleged committed offence: {}"
     ACTION_INCLUDE_ALLEGED_COMMITTED_OFFENCE = "Include alleged committed offence: {}"
+
+    who = models.ForeignKey(EmailUser, null=True, blank=True)
+    when = models.DateTimeField(null=False, blank=False, auto_now_add=True)
+    what = models.TextField(blank=False)
+    sanction_outcome = models.ForeignKey(SanctionOutcome, related_name='action_logs')
 
     class Meta:
         app_label = 'wildlifecompliance'
@@ -344,4 +427,3 @@ class SanctionOutcomeUserAction(UserAction):
             what=str(action)
         )
 
-    sanction_outcome = models.ForeignKey(SanctionOutcome, related_name='action_logs')

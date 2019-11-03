@@ -4,7 +4,7 @@ from django.db import transaction
 from django.http import HttpResponse
 from django.core.exceptions import ValidationError
 from rest_framework import viewsets, serializers, views, status
-from rest_framework.decorators import detail_route, list_route
+#from rest_framework.decorators import detail_route, list_route
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
 from ledger.accounts.models import EmailUser, Address, Profile, EmailIdentity, EmailUserAction
@@ -39,6 +39,9 @@ from wildlifecompliance.components.users.serializers import (
     ComplianceUserDetailsOptimisedSerializer,
     CompliancePermissionGroupMembersSerializer,
     UpdateComplianceManagementUserPreferencesSerializer,
+    ComplianceManagementSaveUserSerializer,
+    ComplianceManagementUserSerializer,
+    ComplianceManagementSaveUserAddressSerializer,
 )
 from wildlifecompliance.components.organisations.serializers import (
     OrganisationRequestDTSerializer,
@@ -49,6 +52,13 @@ from rest_framework_datatables.filters import DatatablesFilterBackend
 from rest_framework_datatables.renderers import DatatablesRenderer
 from django.urls import reverse
 from django.shortcuts import render, redirect, get_object_or_404
+from rest_framework.decorators import (
+    detail_route,
+    list_route,
+    renderer_classes,
+    parser_classes,
+    api_view
+)
 
 
 def generate_dummy_email(first_name, last_name):
@@ -436,6 +446,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @list_route(methods=['POST', ])
     def create_new_person(self, request, *args, **kwargs):
+        print("create_new_person")
         with transaction.atomic():
             try:
                 email_user_id_requested = request.data.get('id', {})
@@ -519,6 +530,152 @@ class UserViewSet(viewsets.ModelViewSet):
                 serializer.is_valid(raise_exception=True)
                 serializer.save()
                 return redirect('/')
+            except serializers.ValidationError:
+                print(traceback.print_exc())
+                raise
+            except ValidationError as e:
+                print(traceback.print_exc())
+                raise serializers.ValidationError(repr(e.error_dict))
+            except Exception as e:
+                print(traceback.print_exc())
+                raise serializers.ValidationError(str(e))
+
+class ComplianceManagementUserViewSet(viewsets.ModelViewSet):
+    queryset = EmailUser.objects.all()
+    serializer_class = UserSerializer
+    renderer_classes = [JSONRenderer, ]
+
+    def get_queryset(self):
+        """
+        Optionally restrict the query if the following parameters are in the URL:
+                - first_name
+                - last_name
+                - dob
+                - email
+        """
+        user = self.request.user
+        if is_internal(self.request):
+            queryset = EmailUser.objects.all()
+        elif is_customer(self.request):
+            queryset = EmailUser.objects.filter(id=user.id)
+        else:
+            queryset = EmailUser.objects.none()
+        first_name = self.request.query_params.get('first_name', None)
+        last_name = self.request.query_params.get('last_name', None)
+        dob = self.request.query_params.get('dob', None)
+        email = self.request.query_params.get('email', None)
+        if first_name is not None:
+            queryset = queryset.filter(first_name__iexact=first_name)
+        if last_name is not None:
+            queryset = queryset.filter(last_name__iexact=last_name)
+        if email is not None:
+            queryset = queryset.filter(email__iexact=email)
+        if dob is not None and dob is not u'':
+            queryset = queryset.filter(dob=dob)
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        print("cm user create")
+        print(request.data)
+        with transaction.atomic():
+            try:
+                request_data = request.data
+                
+                email_address = request.data.get('email', '')
+                if not email_address:
+                    first_name = request.data.get('first_name', '')
+                    last_name = request.data.get('last_name', '')
+                    email_address = generate_dummy_email(first_name, last_name)
+                    request_data.update({'email': email_address})
+                
+                email_user_instance = EmailUser.objects.create_user(email_address, '')
+                res = self.update_person(request, instance=email_user_instance)
+                return res
+                #print("user_serializer_data")
+                #print(type(user_serializer_data))
+                #print(user_serializer_data)
+               # return Response(
+               #     user_serializer_data,
+               #     status=status.HTTP_201_CREATED,
+               #     #headers=self.get_success_headers(user_serializer.data)
+               # )
+
+            except serializers.ValidationError:
+                print(traceback.print_exc())
+                raise
+            except ValidationError as e:
+                print(traceback.print_exc())
+                raise serializers.ValidationError(repr(e.error_dict))
+            except Exception as e:
+                print(traceback.print_exc())
+                raise serializers.ValidationError(str(e))
+
+    @detail_route(methods=['POST', ])
+    #@renderer_classes((JSONRenderer,))
+    def update_person(self, request, instance=None, *args, **kwargs):
+        print("cm user update")
+        print(request.data)
+        with transaction.atomic():
+            try:
+                if not instance:
+                    instance = self.get_object()
+                request_data = request.data
+                
+                email_address = request.data.get('email', '')
+                if not email_address:
+                    first_name = request.data.get('first_name', '')
+                    last_name = request.data.get('last_name', '')
+                    email_address = generate_dummy_email(first_name, last_name)
+                    request_data.update({'email': email_address})
+                
+                residential_address_data = request_data.get('residential_address')
+                # residential address
+                if instance.residential_address:
+                    print("update existing address")
+                    #residential_address_instance = Address.objects.get(
+                     #       id=instance.residential_address.id)
+                    address_serializer = ComplianceManagementSaveUserAddressSerializer(
+                            instance.residential_address, 
+                            data=residential_address_data)
+                    address_serializer.is_valid(raise_exception=True)
+                    if address_serializer.is_valid:
+                        saved_address = address_serializer.save()
+                        request_data.update({'residential_address_id': saved_address.id})
+
+                elif residential_address_data:
+                    print("create address")
+                    print(residential_address_data)
+                    residential_address_data.update({'user_id': instance.id})
+                    address_serializer = ComplianceManagementSaveUserAddressSerializer(
+                            data=residential_address_data)
+                    address_serializer.is_valid(raise_exception=True)
+                    if address_serializer.is_valid:
+                        saved_address = address_serializer.save()
+                        print("saved_address")
+                        print(saved_address)
+                        request_data.update({'residential_address_id': saved_address.id})
+
+                # now save EmailUser with residential_address_id, if it exists
+                print("request_data")
+                print(request_data)
+                user_serializer = ComplianceManagementSaveUserSerializer(
+                        instance=instance, 
+                        data=request_data)
+                user_serializer.is_valid(raise_exception=True)
+                if user_serializer.is_valid:
+                    saved_email_user = user_serializer.save()
+                    email_user_refresh = EmailUser.objects.get(id=saved_email_user.id)
+                    #return_serializer = UserSerializer(instance=instance)
+                    print("email_user_refresh.residential_address")
+                    print(email_user_refresh.residential_address)
+                    return_serializer = ComplianceManagementUserSerializer(instance=email_user_refresh)
+                    
+                    return Response(
+                        return_serializer.data,
+                        status=status.HTTP_201_CREATED,
+                        headers=self.get_success_headers(user_serializer.data)
+                    )
+
             except serializers.ValidationError:
                 print(traceback.print_exc())
                 raise
@@ -670,8 +827,6 @@ class RegionDistrictViewSet(viewsets.ModelViewSet):
 
     @detail_route(methods=['POST', ])
     def get_compliance_group_by_region_district(self, request, *args, **kwargs):
-        print("get_compliance_group_by_region_district")
-        print(request.data)
         try:
             instance = self.get_object()
             group_permission = request.data.get('group_permission')

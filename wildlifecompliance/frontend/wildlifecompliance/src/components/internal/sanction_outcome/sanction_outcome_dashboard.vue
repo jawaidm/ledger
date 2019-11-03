@@ -189,17 +189,24 @@ export default {
                         orderable: true,
                     },
                     {
+                        data: 'payment_status.name',
                         searchable: true,
                         orderable: false,
-                        mRender: function (data, type, row){
-                            return '---';
-                        }
                     },
                     {
+                        data: 'paper_notices',
                         searchable: true,
                         orderable: false,
                         mRender: function (data, type, row){
-                            return '---';
+                            let ret_str = ''
+
+                            if (data.length > 0){
+                                for (let i=0; i<data.length; i++){
+                                    ret_str += '<a href="' + data[i][1] + '">' + data[i][0] + '</a><br />';
+                                }
+                            }
+
+                            return ret_str;
                         }
                     },
                     {
@@ -207,7 +214,6 @@ export default {
                         searchable: false,
                         orderable: false,
                         mRender: function (data, type, row){
-                            console.log(data);
                             if (data){
                                 return data;
                             } else { 
@@ -276,11 +282,6 @@ export default {
     },
     methods: {
         updateDistricts: function(updateFromUI) {
-            console.log('updateDistricts');
-            // if (updateFromUI) {
-            //     // We don't want to clear the default district selection when initially loaded, which derived from the call_email
-            //     this.sanction_outcome.district_id = null;
-            // }
             this.sanction_outcome_availableDistricts = []; // This is a list of options for district
             for (let record of this.sanction_outcome_regionDistricts) {
                 if (this.filterRegionId == record.id) {
@@ -313,7 +314,7 @@ export default {
             let el_fr = $(vm.$refs.issueDateFromPicker);
             let el_to = $(vm.$refs.issueDateToPicker);
 
-            el_fr.datetimepicker({ format: 'DD/MM/YYYY', maxDate: 'now', showClear: true });
+            el_fr.datetimepicker({ format: 'DD/MM/YYYY', maxDate: moment().millisecond(0).second(0).minute(0).hour(0), showClear: true });
             el_fr.on('dp.change', function (e) {
                 if (el_fr.data('DateTimePicker').date()) {
                     vm.filterDateFromPicker = e.date.format('DD/MM/YYYY');
@@ -327,7 +328,7 @@ export default {
             let vm = this;
             let el_fr = $(vm.$refs.issueDateFromPicker);
             let el_to = $(vm.$refs.issueDateToPicker);
-            el_to.datetimepicker({ format: 'DD/MM/YYYY', maxDate: 'now', showClear: true });
+            el_to.datetimepicker({ format: 'DD/MM/YYYY', maxDate: moment().millisecond(0).second(0).minute(0).hour(0), showClear: true });
             el_to.on('dp.change', function (e) {
                 if (el_to.data('DateTimePicker').date()) {
                     vm.filterDateToPicker = e.date.format('DD/MM/YYYY');
@@ -348,12 +349,14 @@ export default {
             this.sanction_outcome_statuses.splice(0, 0, {id: 'all', display: 'All'});
         },
         constructOptionsPaymentStatus: async function() {
-
+            let returned = await cache_helper.getSetCacheList('SanctionOutcomePaymentStatuses', '/api/sanction_outcome/payment_statuses.json');
+            Object.assign(this.sanction_outcome_payment_statuses, returned);
+            this.sanction_outcome_payment_statuses.splice(0, 0, {id: 'all', display: 'All'});
         },
         constructOptionsRegion: async function() {
             console.log('constructOptionsRegion()')
             let returned_regions = await cache_helper.getSetCacheList(
-                "CallEmail_Regions",
+                "Regions",
                 "/api/region_district/get_regions/"
             );
             Object.assign(this.sanction_outcome_regions, returned_regions);
@@ -368,7 +371,7 @@ export default {
         constructOptionsDistrict: async function() {
             console.log('constructOptionsDistrict()')
             let returned_region_districts = await cache_helper.getSetCacheList(
-                "CallEmail_RegionDistricts",
+                "RegionDistricts",
                 api_endpoints.region_district
             );
             Object.assign(this.sanction_outcome_regionDistricts, returned_region_districts);

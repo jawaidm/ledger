@@ -31,7 +31,7 @@
                           <div class="row">
                             <div v-if="statusId === 'open'" class="col-sm-12">
                               <select :disabled="!inspection.user_in_group" class="form-control" v-model="inspection.assigned_to_id" @change="updateAssignedToId()">
-                                <option  v-for="option in inspectionTeam" :value="option.id" v-bind:key="option.id">
+                                <option  v-for="option in inspection.inspection_team" :value="option.id" v-bind:key="option.id">
                                   {{ option.full_name }} 
                                 </option>
                               </select>
@@ -108,13 +108,13 @@
                           </div>
                         </div>
                         
-                        <div  class="row action-button">
+                        <!--div  class="row action-button">
                           <div v-if="!readonlyForm" class="col-sm-12">
                                 <a ref="close" @click="addWorkflow('close')" class="btn btn-primary btn-block">
                                   Close
                                 </a>
                           </div>
-                        </div>
+                        </div-->
 
                     </div>
                 </div>
@@ -130,6 +130,7 @@
                 <div class="container-fluid">
                     <ul class="nav nav-pills aho2">
                         <li class="nav-item active"><a data-toggle="tab" :href="'#'+iTab">Inspection</a></li>
+                        <li class="nav-item"><a data-toggle="tab" :href="'#'+lTab" @click="mapTabClicked">Location</a></li>
                         <li class="nav-item"><a data-toggle="tab" :href="'#'+cTab">Checklist</a></li>
                         <li class="nav-item"><a data-toggle="tab" :href="'#'+oTab">Outcomes</a></li>
                         <li class="nav-item"><a data-toggle="tab" :href="'#'+rTab">Related Items</a></li>
@@ -174,7 +175,7 @@
                               </div>
                             </div>
 
-                            <div class="col-sm-12 form-group"><div class="row">
+                            <div class="form-group"><div class="row">
                                 <label class="col-sm-3">Planned for (Date)</label>
                                 <div class="col-sm-3">
                                     <div class="input-group date" ref="plannedForDatePicker">
@@ -195,34 +196,41 @@
                                     </div>
                                 </div>
                             </div></div>
-                            <div class="col-sm-12 form-group"><div class="row">
+                            <!--div class="col-sm-12 form-group"><div class="row">
                                 <label class="col-sm-4">Party Inspected</label>
                                     <input :disabled="readonlyForm" class="col-sm-1" id="individual" type="radio" v-model="inspection.party_inspected" v-bind:value="`individual`">
                                     <label class="col-sm-1" for="individual">Person</label>
                                     <input :disabled="readonlyForm" class="col-sm-1" id="organisation" type="radio" v-model="inspection.party_inspected" v-bind:value="`organisation`">
                                     <label class="col-sm-1" for="organisation">Organisation</label>
-                            </div></div>
+                            </div></div-->
                             
-                            <div class="col-sm-12 form-group"><div class="row">
-                                <div class="col-sm-8">
-                                    <SearchPerson :isEditable="!readonlyForm" classNames="form-control" elementId="search-person" :search_type="inspection.party_inspected" @person-selected="personSelected"ref="search_person"/>
-                                </div>
+                            <div class="form-group"><div class="row">
+                                    <SearchPersonOrganisation 
+                                    :parentEntity="inspectedEntity"
+                                    :excludeStaff="true" 
+                                    :isEditable="!readonlyForm" 
+                                    classNames="form-control" 
+                                    :initialSearchType="inspection.party_inspected" 
+                                    @entity-selected="entitySelected" 
+                                    showCreateUpdate
+                                    ref="search_person_organisation"
+                                    v-bind:key="updateSearchPersonOrganisationBindId"/>
                                 <!--div class="col-sm-1">
                                     <input type="button" class="btn btn-primary" value="Add" @click.prevent="addOffenderClicked()" />
                                 </div-->
-                                <div class="col-sm-2">
+                                <!--div class="col-sm-2">
                                     <input :disabled="readonlyForm" type="button" class="btn btn-primary" value="Create New Person" @click.prevent="createNewPersonClicked()" />
-                                </div>
+                                </div-->
                             </div></div>
-                            <div class="col-sm-12 form-group"><div class="row">
+                            <!--div class="col-sm-12 form-group"><div class="row">
                                 <div class="col-sm-12" v-if="!readonlyForm">
                                   <CreateNewPerson :displayComponent="displayCreateNewPerson" @new-person-created="newPersonCreated"/>
                                 </div>
-                                <!--div class="col-sm-12" v-if="!readonlyForm">
+                                <div class="col-sm-12" v-if="!readonlyForm">
                                   <CreateNewOrganisation/>
-                                </div-->
-                            </div></div>
-                            <div class="col-sm-12 form-group"><div class="row">
+                                </div>
+                            </div></div-->
+                            <div class="form-group"><div class="row">
                               <label class="col-sm-4" for="inspection_inform">Inform party being inspected</label>
                               <input :disabled="readonlyForm" type="checkbox" id="inspection_inform" v-model="inspection.inform_party_being_inspected">
                               
@@ -258,6 +266,42 @@
             
                           
                         </div>  
+
+                        <div :id="lTab" class="tab-pane fade in">
+                            <FormSection :formCollapse="false" label="Location">
+                                    <MapLocation v-if="inspection.location" v-bind:key="lTab" ref="mapLocationComponent" :readonly="readonlyForm" :marker_longitude="inspection.location.geometry.coordinates[0]" :marker_latitude="inspection.location.geometry.coordinates[1]" @location-updated="locationUpdated"/>
+                                    <div :id="idLocationFieldsAddress" v-if="inspection.location">
+                                        <div class="col-sm-12 form-group"><div class="row">
+                                            <label class="col-sm-4">Street</label>
+                                            <input class="form-control" v-model="inspection.location.properties.street" readonly />
+                                        </div></div>
+                                        <div class="col-sm-12 form-group"><div class="row">
+                                            <label class="col-sm-4">Town/Suburb</label>
+                                            <input class="form-control" v-model="inspection.location.properties.town_suburb" readonly />
+                                        </div></div>
+                                        <div class="col-sm-12 form-group"><div class="row">
+                                            <label class="col-sm-4">State</label>
+                                            <input class="form-control" v-model="inspection.location.properties.state" readonly />
+                                        </div></div>
+                                        <div class="col-sm-12 form-group"><div class="row">
+                                            <label class="col-sm-4">Postcode</label>
+                                            <input class="form-control" v-model="inspection.location.properties.postcode" readonly />
+                                        </div></div>
+                                        <div class="col-sm-12 form-group"><div class="row">
+                                            <label class="col-sm-4">Country</label>
+                                            <input class="form-control" v-model="inspection.location.properties.country" readonly />
+                                        </div></div>
+                                    </div>
+
+                                    <div :id="idLocationFieldsDetails" v-if="inspection.location">
+                                        <div class="col-sm-12 form-group"><div class="row">
+                                            <label class="col-sm-4">Details</label>
+                                            <textarea class="form-control location_address_field" v-model="inspection.location.properties.details" />
+                                        </div></div>
+                                    </div>
+                            </FormSection>
+                        </div>
+
                         <div :id="cTab" class="tab-pane fade in">
                             <FormSection :formCollapse="false" label="Checklist">
                                 <div class="col-sm-12 form-group"><div class="row">
@@ -279,7 +323,13 @@
                                             <label class="control-label pull-left"  for="Name">Inspection Report</label>
                                         </div>
                                         <div class="col-sm-9" v-if="inspection.inspectionReportDocumentUrl">
-                                            <filefield ref="inspection_report_file" name="inspection-report-file" :isRepeatable="false" :documentActionUrl="inspection.inspectionReportDocumentUrl" @update-parent="loadInspectionReport"/>
+                                            <filefield 
+                                            ref="inspection_report_file" 
+                                            name="inspection-report-file" 
+                                            :isRepeatable="false" 
+                                            :documentActionUrl="inspection.inspectionReportDocumentUrl" 
+                                            @update-parent="loadInspectionReport" 
+                                            :readonly="readonlyForm"/>
                                         </div>
                                     </div>
                                 </div>
@@ -289,7 +339,7 @@
                             <FormSection :formCollapse="false" label="Related Items">
                                 <div class="col-sm-12 form-group"><div class="row">
                                     <div class="col-sm-12" v-if="relatedItemsVisibility">
-                                        <RelatedItems v-bind:key="relatedItemsBindId" :parent_update_related_items="setRelatedItems" :readonlyForm="readonlyForm"/>
+                                        <RelatedItems v-bind:key="relatedItemsBindId" :parent_update_related_items="setRelatedItems" :readonlyForm="!canUserAction"/>
                                     </div>
                                 </div></div>
                             </FormSection>
@@ -301,22 +351,27 @@
             </div>          
           </div>
 
-        <div class="navbar navbar-fixed-bottom" style="background-color: #f5f5f5 ">
-                        <div class="navbar-inner">
-                            <div class="container">
-                                <p class="pull-right" style="margin-top:5px;">
-                                    
-                                    <input type="button" @click.prevent="saveExit" class="btn btn-primary" value="Save and Exit"/>
-                                    <input type="button" @click.prevent="save" class="btn btn-primary" value="Save and Continue"/>
-                                </p>
-                            </div>
-                        </div>
-        </div>          
+        <div v-if="inspection.can_user_action" class="navbar navbar-fixed-bottom" style="background-color: #f5f5f5 ">
+            <div class="navbar-inner">
+                <div class="container">
+                    <p class="pull-right" style="margin-top:5px;">
+                        <input type="button" @click.prevent="save('exit')" class="btn btn-primary" value="Save and Exit"/>
+                        <input type="button" @click.prevent="save('noexit')" class="btn btn-primary" value="Save and Continue"/>
+                    </p>
+                </div>
+            </div>
+        </div>
         <!--div v-if="workflow_type">
           <InspectionWorkflow ref="add_workflow" :workflow_type="workflow_type" v-bind:key="workflowBindId" />
         </div-->
         <div v-if="offenceInitialised">
-            <Offence ref="offence" :parent_update_function="loadInspection" />
+            <Offence 
+            ref="offence" 
+            :parent_update_function="loadInspection" 
+            :region_id="inspection.region_id" 
+            :district_id="inspection.district_id" 
+            :allocated_group_id="inspection.allocated_group_id" 
+            v-bind:key="offenceBindId" />
         </div>
         <div v-if="sanctionOutcomeInitialised">
             <SanctionOutcome ref="sanction_outcome" :parent_update_function="loadInspection"/>
@@ -327,9 +382,9 @@
 <script>
 import Vue from "vue";
 import FormSection from "@/components/forms/section_toggle.vue";
-import SearchPerson from "@/components/common/search_person.vue";
-import CreateNewPerson from "@common-components/create_new_person.vue";
-import CreateNewOrganisation from "@common-components/create_new_organisation.vue";
+import SearchPersonOrganisation from "@/components/common/search_person_or_organisation.vue";
+//import CreateNewPerson from "@common-components/create_new_person.vue";
+//import CreateNewOrganisation from "@common-components/create_new_organisation.vue";
 import CommsLogs from "@common-components/comms_logs.vue";
 import datatable from '@vue-utils/datatable.vue'
 import { api_endpoints, helpers, cache_helper } from "@/utils/hooks";
@@ -343,22 +398,30 @@ import SanctionOutcome from '../sanction_outcome/sanction_outcome_modal';
 import filefield from '@/components/common/compliance_file.vue';
 import InspectionWorkflow from './inspection_workflow.vue';
 import RelatedItems from "@common-components/related_items.vue";
+import MapLocation from "../../common/map_location";
 require("select2/dist/css/select2.min.css");
 require("select2-bootstrap-theme/dist/select2-bootstrap.min.css");
+import hash from 'object-hash';
 
 
 export default {
   name: "ViewInspection",
   data: function() {
     return {
+      uuid: 0,
+      objectHash: null,
       iTab: 'iTab'+this._uid,
       rTab: 'rTab'+this._uid,
       oTab: 'oTab'+this._uid,
       cTab: 'cTab'+this._uid,
+      lTab: 'lTab'+this._uid,
       current_schema: [],
       //createInspectionBindId: '',
       workflowBindId: '',
-      inspectionTeam: null,
+      //offenceBindId: '',
+      //inspectionTeam: null,
+      idLocationFieldsAddress: this.guid + "LocationFieldsAddress",
+      idLocationFieldsDetails: this.guid + "LocationFieldsDetails",
       dtHeadersInspectionTeam: [
           'Name',
           'Role',
@@ -376,11 +439,15 @@ export default {
                   data: 'Action',
                   mRender: function(data, type, row) {
                       let links = '';
-                      if (row.Action.can_user_action) {
+                      console.log("row.Action")
+                      console.log(row.Action)
+                      if (!row.Action.readonlyForm) {
                           if (row.Action.action === 'Member') {
                               links = '<a href="#" class="make_team_lead" data-member-id="' + row.Action.id + '">Make Team Lead</a><br>'
                           } 
-                          links += '<a href="#" class="remove_button" data-member-id="' + row.Action.id + '">Remove</a>'
+                          if (row.Action.can_remove) {
+                              links += '<a href="#" class="remove_button" data-member-id="' + row.Action.id + '">Remove</a>'
+                          }
                           return links
                       } else {
                           return ''
@@ -413,25 +480,49 @@ export default {
       ),
       sanctionOutcomeInitialised: false,
       offenceInitialised: false,
+      hashAttributeWhitelist: [
+          "allocated_group_id",
+          "details",
+          "district_id",
+          "individual_inspected_id",
+          "inform_party_being_inspected",
+          "inspection_type_id",
+          "location",
+          "organisation_inspected_id",
+          "party_inspected",
+          "planned_for_date",
+          "planned_for_time",
+          "region_id",
+          "title",
+          ],
     };
   },
   components: {
     CommsLogs,
     FormSection,
     datatable,
-    SearchPerson,
-    CreateNewPerson,
-    CreateNewOrganisation,
+    SearchPersonOrganisation,
+    //CreateNewPerson,
+    //CreateNewOrganisation,
     Offence,
     SanctionOutcome,
     filefield,
     InspectionWorkflow,
     RelatedItems,
+    MapLocation,
   },
   computed: {
     ...mapGetters('inspectionStore', {
       inspection: "inspection",
     }),
+    ...mapGetters({
+        renderer_form_data: 'renderer_form_data'
+    }),
+    updateSearchPersonOrganisationBindId: function() {
+        if (this.inspectedEntity.data_type && this.inspectedEntity.id) {
+            return this.inspectedEntity.data_type + '_' + this.inspectedEntity.id
+        }
+    },
     csrf_token: function() {
       return helpers.getCookie("csrftoken");
     },
@@ -442,13 +533,14 @@ export default {
         return this.inspection.status ? this.inspection.status.id : '';
     },
     readonlyForm: function() {
+        let readonly = true
         if (this.inspection.status && this.inspection.status.id === 'await_endorsement') {
-            return true;
         } else if (this.inspection.id) {
-            return !this.inspection.can_user_action;
+            readonly = !this.inspection.can_user_action;
         } else {
-            return true;
         }
+        console.log(readonly)
+        return readonly
     },
     canUserAction: function() {
         return this.inspection.can_user_action;
@@ -526,6 +618,27 @@ export default {
             return false
         }
     },
+    inspectedEntity: function() {
+        let entity = {}
+        if (this.inspection.individual_inspected) {
+            entity.id = this.inspection.individual_inspected.id;
+            entity.data_type = 'individual';
+        } else if (this.inspection.organisation_inspected) {
+            entity.id = this.inspection.organisation_inspected.id;
+            entity.data_type = 'organisation';
+        }
+        return entity;
+    },
+    offenceBindId: function() {
+        let offence_bind_id = ''
+        //let timeNow = Date.now()
+        //this.uuid += 1
+        offence_bind_id = 'offence' + parseInt(this.uuid);
+        return offence_bind_id;
+    },
+    inspectionTeam: function() {
+        return this.inspection.inspection_team;
+    },
   },
   filters: {
     formatDate: function(data) {
@@ -550,25 +663,140 @@ export default {
       setPartyInspected: 'setPartyInspected',
       setRelatedItems: 'setRelatedItems',
     }),
+        mapTabClicked: function() {
+            // Call this function to render the map correctly
+            // In some case, leaflet map is not rendered correctly...   Just partialy shown...
+            if(this.$refs.mapLocationComponent){
+                this.$refs.mapLocationComponent.invalidateSize();
+            }
+        },
+        locationUpdated: function(latlng){
+            console.log('locationUpdated');
+            console.log(latlng);
+            // Update coordinate
+            this.inspection.location.geometry.coordinates[1] = latlng.lat;
+            this.inspection.location.geometry.coordinates[0] = latlng.lng;
+            // Update Address/Details
+            this.reverseGeocoding(latlng);
+        },
+        reverseGeocoding: function(coordinates_4326) {
+          var self = this;
+
+          $.ajax({
+            url: "https://mapbox.dpaw.wa.gov.au/geocoding/v5/mapbox.places/" + coordinates_4326.lng + "," + coordinates_4326.lat + ".json?" +
+              $.param({
+                limit: 1,
+                types: "address"
+              }),
+            dataType: "json",
+            success: function(data, status, xhr) {
+              let address_found = false;
+              if (data.features && data.features.length > 0) {
+                for (var i = 0; i < data.features.length; i++) {
+                  if (data.features[i].place_type.includes("address")) {
+                    self.setAddressFields(data.features[i]);
+                    address_found = true;
+                  }
+                }
+              }
+              if (address_found) {
+                self.showHideAddressDetailsFields(true, false);
+                self.setLocationDetailsFieldEmpty();
+              } else {
+                self.showHideAddressDetailsFields(false, true);
+                self.setLocationAddressEmpty();
+              }
+            }
+          });
+        },
+        setAddressFields(feature) {
+            if (this.inspection.location){
+                  let state_abbr_list = {
+                    "New South Wales": "NSW",
+                    Queensland: "QLD",
+                    "South Australia": "SA",
+                    Tasmania: "TAS",
+                    Victoria: "VIC",
+                    "Western Australia": "WA",
+                    "Northern Territory": "NT",
+                    "Australian Capital Territory": "ACT"
+                  };
+                  let address_arr = feature.place_name.split(",");
+
+                  /* street */
+                  this.inspection.location.properties.street = address_arr[0];
+
+                  /*
+                   * Split the string into suburb, state and postcode
+                   */
+                  let reg = /^([a-zA-Z0-9\s]*)\s(New South Wales|Queensland|South Australia|Tasmania|Victoria|Western Australia|Northern Territory|Australian Capital Territory){1}\s+(\d{4})$/gi;
+                  let result = reg.exec(address_arr[1]);
+
+                  /* suburb */
+                  this.inspection.location.properties.town_suburb = result[1].trim();
+
+                  /* state */
+                  let state_abbr = state_abbr_list[result[2].trim()];
+                  this.inspection.location.properties.state = state_abbr;
+
+                  /* postcode */
+                  this.inspection.location.properties.postcode = result[3].trim();
+
+                  /* country */
+                  this.inspection.location.properties.country = "Australia";
+            }
+        },
+        showHideAddressDetailsFields: function(showAddressFields, showDetailsFields) {
+          if (showAddressFields) {
+            $("#" + this.idLocationFieldsAddress).fadeIn();
+          } else {
+            $("#" + this.idLocationFieldsAddress).fadeOut();
+          }
+          if (showDetailsFields) {
+            $("#" + this.idLocationFieldsDetails).fadeIn();
+          } else {
+            $("#" + this.idLocationFieldsDetails).fadeOut();
+          }
+        },
+        setLocationAddressEmpty() {
+            if(this.inspection.location){
+                this.inspection.location.properties.town_suburb = "";
+                this.inspection.location.properties.street = "";
+                this.inspection.location.properties.state = "";
+                this.inspection.location.properties.postcode = "";
+                this.inspection.location.properties.country = "";
+            }
+        },
+        setLocationDetailsFieldEmpty() {
+            if(this.inspection.location){
+                this.inspection.location.properties.details = "";
+            }
+        },
     constructInspectionTeamTable: function() {
-        console.log('constructInspectionTeamTable');
+        //console.log('constructInspectionTeamTable');
+        //console.log(this.inspection.inspection_team);
         this.$refs.inspection_team_table.vmDataTable.clear().draw();
 
-        if(this.inspectionTeam){
-          for(let i = 0; i< this.inspectionTeam.length; i++){
+        if(this.inspection.inspection_team){
+          for(let i = 0; i< this.inspection.inspection_team.length; i++){
             //let already_exists = this.$refs.related_items_table.vmDataTable.columns(0).data()[0].includes(this.displayedEntity.related_items[i].id);
 
             let actionColumn = new Object();
-            Object.assign(actionColumn, this.inspectionTeam[i]);
-            actionColumn.can_user_action = this.inspection.can_user_action;
+            Object.assign(actionColumn, this.inspection.inspection_team[i]);
+            //actionColumn.can_user_action = this.inspection.can_user_action;
+            actionColumn.readonlyForm = this.readonlyForm;
+            // Prevent removal of last team member (plus blank entry)
+            if (this.inspection.inspection_team.length > 2) {
+                actionColumn.can_remove = true;
+            }
 
             //if (!already_exists) {
-            if (this.inspectionTeam[i].id) {
+            if (this.inspection.inspection_team[i].id) {
             this.$refs.inspection_team_table.vmDataTable.row.add(
                 {
                     // 'id': this.inspectionTeam[i].id,
-                    'full_name': this.inspectionTeam[i].full_name,
-                    'member_role': this.inspectionTeam[i].member_role,
+                    'full_name': this.inspection.inspection_team[i].full_name,
+                    'member_role': this.inspection.inspection_team[i].member_role,
                     'Action': actionColumn,
                 }
             ).draw();
@@ -587,19 +815,15 @@ export default {
         }
 
         let inspectionTeamResponse = await Vue.http.post(inspectionTeamUrl, payload);
-        this.inspectionTeam = inspectionTeamResponse.body;
-        this.inspectionTeam.splice(0, 0,
-          {
-            action: "",
-            member_role: "",
-            full_name: "",
-            id: null,
-          });
+        await this.setInspection(inspectionTeamResponse.body);
+        this.$nextTick(() => {
+            this.constructInspectionTeamTable()
+        });
     },
-    newPersonCreated: function(obj) {
+    newPersonCreated: async function(obj) {
         console.log(obj);
         if(obj.person){
-            this.setPartyInspected({data_type: 'individual', id: obj.person.id});
+            await this.setPartyInspected({data_type: 'individual', id: obj.person.id});
 
         // Set fullname and DOB into the input box
         let full_name = [obj.person.first_name, obj.person.last_name].filter(Boolean).join(" ");
@@ -612,9 +836,9 @@ export default {
         // Should not reach here
       }
     },
-    loadInspectionReport: function() {
+    loadInspectionReport: async function() {
         console.log("loadInspectionReport")
-        this.loadInspection({inspection_id: this.inspection.id});
+        await this.loadInspection({inspection_id: this.inspection.id});
     },
 
     loadSchema: function() {
@@ -642,6 +866,7 @@ export default {
       });
     },
     open_offence(){
+      this.uuid += 1;
       this.offenceInitialised = true;
       this.$nextTick(() => {
           this.$refs.offence.isModalOpen = true;
@@ -671,11 +896,12 @@ export default {
             action: 'make_team_lead'
         });
     },
-    personSelected: function(para) {
+    entitySelected: async function(para) {
         console.log(para);
-        this.setPartyInspected(para);
+        await this.setPartyInspected(para);
     },
     updateWorkflowBindId: function() {
+        //let workflowBindId = ''
         let timeNow = Date.now()
         if (this.workflow_type) {
             this.workflowBindId = this.workflow_type + '_' + timeNow.toString();
@@ -691,26 +917,34 @@ export default {
       });
       // this.$refs.add_workflow.isModalOpen = true;
     },
-    save: async function () {
-        if (this.inspection.id) {
-            await this.saveInspection({ create: false, internal: false });
-        } else {
-            await this.saveInspection({ create: true, internal: false });
-            this.$nextTick(function () {
-                this.$router.push(
-                  { name: 'view-inspection', 
-                    params: { id: this.inspection.id }
-                  });
-            });
-        }
-    },
-    saveExit: async function() {
+    save: async function(returnToDash) {
+      console.log(returnToDash)
+      let savedInspection = null;
+      let savedPerson = null;
       if (this.inspection.id) {
-          await this.saveInspection({ create: false, internal: false });
+          if (this.$refs.search_person_organisation && this.$refs.search_person_organisation.entityIsPerson) {
+              console.log("savePerson")
+              savedPerson = await this.$refs.search_person_organisation.parentSave()
+              // if person save ok, continue with Inspection save
+              if (savedPerson && savedPerson.ok) {
+                  savedInspection = await this.saveInspection({ create: false, internal: false });
+              }
+          } else {
+              console.log("no savePerson")
+              savedInspection = await this.saveInspection({ create: false, internal: false });
+          }
       } else {
-          await this.saveInspection({ create: true, internal: false });
+          savedInspection = await this.saveInspection({ create: true, internal: false });
       }
-      this.$router.push({ name: 'internal-inspection-dash' });
+      this.calculateHash();
+      //console.log(savedInspection);
+      if (savedInspection && savedInspection.ok && returnToDash === 'exit') {
+        // remove redundant eventListeners
+        window.removeEventListener('beforeunload', this.leaving);
+        window.removeEventListener('onblur', this.leaving);
+        // return to dash
+        this.$router.push({ name: 'internal-inspection-dash' });
+      }
     },
     addEventListeners: function() {
       let vm = this;
@@ -748,6 +982,47 @@ export default {
           '.make_team_lead',
           vm.makeTeamLead,
           );
+      window.addEventListener('beforeunload', this.leaving);
+      window.addEventListener('onblur', this.leaving);
+    },
+    leaving: function(e) {
+        let vm = this;
+        let dialogText = '';
+        if (this.formChanged()){
+            e.returnValue = dialogText;
+            return dialogText;
+        }
+    },
+    formChanged: function(){
+        let changed = false;
+        let copiedInspection = {};
+        Object.getOwnPropertyNames(this.inspection).forEach(
+            (val, idx, array) => {
+                if (this.hashAttributeWhitelist.includes(val)) {
+                    copiedInspection[val] = this.inspection[val]
+                }
+            });
+        this.addHashAttributes(copiedInspection);
+        if(this.objectHash !== hash(copiedInspection)){
+            changed = true;
+        }
+        return changed;
+    },
+    calculateHash: function() {
+        let copiedInspection = {}
+        Object.getOwnPropertyNames(this.inspection).forEach(
+            (val, idx, array) => {
+                if (this.hashAttributeWhitelist.includes(val)) {
+                    copiedInspection[val] = this.inspection[val]
+                }
+            });
+        this.addHashAttributes(copiedInspection);
+        this.objectHash = hash(copiedInspection);
+    },
+    addHashAttributes: function(obj) {
+        let copiedRendererFormData = Object.assign({}, this.renderer_form_data);
+        obj.renderer_form_data = copiedRendererFormData;
+        return obj;
     },
     updateAssignedToId: async function (user) {
         let url = helpers.add_endpoint_join(
@@ -767,7 +1042,9 @@ export default {
             payload
         );
         await this.setInspection(res.body); 
-        this.constructInspectionTeamTable()
+        this.$nextTick(() => {
+            this.constructInspectionTeamTable();
+        });
     },
   },
   created: async function() {
@@ -788,24 +1065,6 @@ export default {
             id: "",
             description: "",
           });
-    
-      // Set Individual or Organisation in search field
-      if (this.inspection.individual_inspected) {
-          let value = [
-              this.inspection.individual_inspected.full_name, 
-              this.inspection.individual_inspected.dob].
-              filter(Boolean).join(", ");
-          this.$refs.search_person.setInput(value);
-      } else if (this.inspection.organisation_inspected) {
-          let value = [
-              this.inspection.organisation_inspected.name,
-              this.inspection.organisation_inspected.abn].
-              filter(Boolean).join(", ");
-          this.$refs.search_person.setInput(value);
-      }
-      // load Inspection report
-      //await this.$refs.inspection_report_file.get_documents();
-      
       // load current Inspection renderer schema
       this.$nextTick(async () => {
           if (this.inspection.inspection_type_id) {
@@ -813,8 +1072,16 @@ export default {
           }
       });
       // calling modifyInspectionTeam with null parameters returns the current list
-      this.modifyInspectionTeam({user_id: null, action: null});
+      //this.modifyInspectionTeam({user_id: null, action: null});
+      // create object hash
+      //this.object_hash = hash(this.inspection);
+      this.calculateHash();
   },
+  destroyed: function() {
+      window.removeEventListener('beforeunload', this.leaving);
+      window.removeEventListener('onblur', this.leaving);
+  },
+
   mounted: function() {
       let vm = this;
 
@@ -845,7 +1112,7 @@ export default {
           this.addEventListeners();
           this.constructInspectionTeamTable();
       });
-  }
+  },
 };
 </script>
 

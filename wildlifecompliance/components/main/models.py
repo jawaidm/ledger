@@ -152,8 +152,17 @@ for method_name, method in queryset_methods.items():
     setattr(QuerySet, method_name, method)
 
 
+class TemporaryDocumentCollection(models.Model):
+
+    class Meta:
+        app_label = 'wildlifecompliance'
+
+
 # temp document obj for generic file upload component
 class TemporaryDocument(Document):
+    temp_document_collection = models.ForeignKey(
+        TemporaryDocumentCollection,
+        related_name='documents')
     _file = models.FileField(max_length=255)
 
     class Meta:

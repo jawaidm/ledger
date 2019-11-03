@@ -74,7 +74,7 @@ export default {
         readonly:Boolean,
         documentActionUrl: String,
         //createDocumentActionUrl: Function,
-        parent_id: Number,
+        //parent_id: Number,
     },
     //components: {CommentBlock, HelpText},
     data:function(){
@@ -86,12 +86,26 @@ export default {
             filename:null,
             help_text_url:'',
             commsLogId: null,
-            document_action_url: this.documentActionUrl,
+            temporary_document_collection_id: null,
+            //document_action_url: this.documentActionUrl,
         }
     },
     computed: {
         csrf_token: function() {
             return helpers.getCookie('csrftoken')
+        },
+        document_action_url: function() {
+            let url = ''
+            if (this.documentActionUrl == 'temporary_document') {
+                if (!this.temporary_document_collection_id) {
+                    url = api_endpoints.temporary_document
+                } else {
+                    url = api_endpoints.temporary_document + this.temporary_document_collection_id + '/process_temp_comms_log_document/'
+                }
+            } else {
+                url = this.documentActionUrl
+            }
+            return url;
         },
     },
     watch: {
@@ -211,12 +225,16 @@ export default {
 
         handleChangeWrapper: async function(e) {
             console.log(this.document_action_url)
-            if (!this.document_action_url) {
-                // parameter must be passed to the parent method to ensure that parent object id is updated
-                // and document_action_url is passed the correct string
-                await this.$emit('create-parent', (done) => {
-                    console.log("inside emit")
-                    console.log(done)
+            if (this.documentActionUrl === 'temporary_document' && !this.temporary_document_collection_id) {
+                // If temporary_document, create TemporaryDocumentCollection object and allow document_action_url to update
+                console.log("in handlechangewrapper")
+                let res = await Vue.http.post(this.document_action_url)
+                console.log(res)
+                this.temporary_document_collection_id = res.body.id
+                await this.$emit('update-temp-doc-coll-id', this.temporary_document_collection_id);
+                //this.$parent.temporary_document_collection_id = this.temporary_document_collection_id
+                this.$nextTick(async () => {
+                    // must emit event here
                     this.handleChange(e);
                 });
             } else {
@@ -232,6 +250,9 @@ export default {
                 formData.append('action', 'save');
                 if (this.commsLogId) {
                     formData.append('comms_log_id', this.commsLogId);
+                }
+                if (this.temporary_document_collection_id) {
+                    formData.append('temporary_document_collection_id', this.temporary_document_collection_id);
                 }
                 formData.append('input_name', this.name);
                 formData.append('filename', e.target.files[0].name);
@@ -269,7 +290,11 @@ export default {
         }
         this.$nextTick(async () => {
             console.log(this.document_action_url);
-            await this.get_documents();
+            if (this.documentActionUrl === 'temporary_document' && !this.temporary_document_collection_id) {
+                // pass
+            } else {
+                await this.get_documents();
+            }
         });
     },
 }

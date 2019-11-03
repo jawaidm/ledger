@@ -268,7 +268,7 @@ import { strToBool } from "@/utils/helpers.js";
 import FormSection from '@/components/forms/section.vue'
 import Group from '@/components/forms/group.vue'
 import Radio from '@/components/forms/radio.vue'
-import Conditions from '@/components/forms/conditions.vue'
+import Conditions from '@/components/forms/compliance_conditions.vue'
 // import SelectConditions from '@/components/forms/select-conditions.vue'
 import Checkbox from '@/components/forms/checkbox.vue'
 import Declaration from '@/components/forms/declarations.vue'
