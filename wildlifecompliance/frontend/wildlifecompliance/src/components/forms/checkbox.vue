@@ -2,7 +2,7 @@
     <div>
         <div class="form-group">
             <div class="checkbox">
-                <label :id="id"/>
+                <label :id="id">
                 <input :onclick="isClickable" ref="Checkbox" :name="name" type="checkbox" :class="group" data-parsley-required :data-conditions="options" @change="handleChange" :checked="isChecked" :required="isRequired"/>
                 {{ label }}
                 <template v-if="help_text">
@@ -21,7 +21,7 @@
 import HelpText from './help_text.vue'
 import HelpTextUrl from './help_text_url.vue'
 export default {
-  props: ['name', 'label', 'field_data', 'group', 'id', 'help_text', 'help_text_url', 'conditions', "handleChange","readonly", "isRequired"],
+  props: ['name', 'label', 'value', 'group', 'id', 'help_text', 'help_text_url', 'conditions', "handleChange","readonly", "isRequired"],
   components: {HelpText, HelpTextUrl},
   data: function() {
     let vm = this;
@@ -37,10 +37,7 @@ export default {
     },
     options: function() {
       return JSON.stringify(this.conditions);
-    },
-    value: function() {
-      return this.field_data.value;
-    },
+    }
   },
   mounted:function () {
       let vm = this;

@@ -45,6 +45,8 @@ export default {
     },
     fetchOrgRequestPending:function (id){
         return new Promise ((resolve,reject) => {
+            console.log('fetchOrgRequestPending in internal/utils.js');
+            console.log(helpers.add_endpoint_join(api.users,id + '/pending_org_requests'));
             Vue.http.get(helpers.add_endpoint_join(api.users,id + '/pending_org_requests')).then((response) => {
                 resolve(response.body);
             },
@@ -85,7 +87,7 @@ export default {
     },
     fetchCurrentUser: function (){
         return new Promise ((resolve,reject) => {
-            Vue.http.get(api.my_user_details).then((response) => {
+            Vue.http.get(api.profile).then((response) => {
                 resolve(response.body);
             },
             (error) => {

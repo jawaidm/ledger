@@ -40,9 +40,3 @@ def get_department_user_compact(email):
     except:
         return {}
 
-
-def get_app_label():
-    try:
-        return settings.SYSTEM_APP_LABEL
-    except AttributeError:
-        return ''

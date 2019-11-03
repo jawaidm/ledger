@@ -25,9 +25,7 @@ module.exports = {
       'vue$': 'vue/dist/vue.esm.js',
       '@': resolve('src'),
       '@vue-utils': resolve('src/utils/vue'),
-      '@common-components': resolve('src/components/common/'),
-      '@internal-components': resolve('src/components/internal/'),
-      '@external-components': resolve('src/components/external/'),
+      '@common-utils': resolve('src/components/common/'),
       'datetimepicker':'eonasdan-bootstrap-datetimepicker/build/js/bootstrap-datetimepicker.min.js',
       'easing':'jquery.easing/jquery.easing.js'
     }
@@ -80,15 +78,7 @@ module.exports = {
       {
         test: /datatables\.net.*/,
         loader: 'imports-loader?define=>false,jquery=>jquery,$=>jquery'
-      },
-      {
-        test: /\.scss$/,
-        use: [
-          'vue-style-loader',
-          'css-loader',
-          'sass-loader'
-        ]
-      }
+      }  
     ]
   },
   plugins:[

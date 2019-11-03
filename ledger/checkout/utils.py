@@ -3,7 +3,6 @@ from decimal import Decimal as D, getcontext
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.conf import settings
-from django.db.models import Q
 from oscar.apps.checkout.utils import CheckoutSessionData as CoreCheckoutSessionData
 from oscar.apps.voucher.models import Voucher
 from oscar.core.loading import get_class
@@ -78,10 +77,7 @@ def create_checkout_session(request, parameters):
     session_data = CheckoutSessionData(request) 
 
     # reset method of payment when creating a new session
-    try:
-        session_data.pay_by(parameters['payment_method'])
-    except KeyError:
-        session_data.pay_by(None)
+    session_data.pay_by(None)
     
     session_data.use_system(serializer.validated_data['system'])
     session_data.charge_by(serializer.validated_data['card_method'])

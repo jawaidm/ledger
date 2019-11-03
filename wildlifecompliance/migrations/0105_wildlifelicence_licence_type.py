@@ -16,9 +16,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='wildlifelicence',
             name='licence_type',
-            field=models.ForeignKey(
-                null=True,
-                on_delete=django.db.models.deletion.CASCADE,
-                to='wildlifecompliance.WildlifeLicenceActivity'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='wildlifecompliance.WildlifeLicenceActivity'),
         ),
     ]

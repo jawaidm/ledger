@@ -32,12 +32,11 @@
                                         <label class="control-label pull-left"  for="Name">Type</label>
                                     </div>
                                     <div class="col-sm-4">
-                                        <select class="form-control" name="type" v-model="comms.log_type">
+                                        <select class="form-control" name="type" v-model="comms.type">
                                             <option value="">Select Type</option>
                                             <option value="email">Email</option>
                                             <option value="mail">Mail</option>
                                             <option value="phone">Phone</option>
-                                            <option value="person">Person</option>
                                         </select>
                                     </div>
                                 </div>
@@ -154,8 +153,7 @@ export default {
             return vm.errors;
         },
         title: function(){
-        // TODO: application processing status doesnt have with approver anymore, need to review
-            return this.processing_status.id == 'with_approver' ? 'Issue Comms' : 'Propose to issue licence';
+            return this.processing_status == 'With Approver' ? 'Issue Comms' : 'Propose to issue licence';
         }
     },
     methods:{
@@ -179,8 +177,6 @@ export default {
             }
             file_obj.file = _file;
             file_obj.name = _file.name;
-            // immediate file upload
-            vm.sendData();
         },
         removeFile(index){
             let length = this.files.length;

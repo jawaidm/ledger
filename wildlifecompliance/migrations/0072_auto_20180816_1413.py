@@ -20,9 +20,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='wildlifelicenceactivity',
             name='base_licence_fee',
-            field=models.DecimalField(
-                decimal_places=2,
-                default='0',
-                max_digits=8),
+            field=models.DecimalField(decimal_places=2, default='0', max_digits=8),
         ),
     ]

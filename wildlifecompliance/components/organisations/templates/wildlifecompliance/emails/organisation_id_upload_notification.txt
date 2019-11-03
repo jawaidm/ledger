@@ -1,18 +1,14 @@
 {%  extends 'wildlifecompliance/emails/base_email.txt' %}
 
 {%  block content %}
-    Identification details for the following organisation has been uploaded.
+    Identification for the following organisation you are linked to has been uploaded.
 
     Organisation: {{ organisation.name }}
 
     ABN: {{ organisation.abn }}
 
-    Address: {{ organisation.address.line1 }}, {{ organisation.address.locality }},
-        {{ organisation.address.state }}, {{ organisation.address.postcode}},
-        {{ organisation.address.country.name}}
-
-    This relates to the following applications from which the user had been requested an amended ID to be uploaded:
-
-    Application : {{ applications }}
+    Address: {{ organisation.postal_address.line1 }}, {{ organisation.postal_address.locality }},
+        {{ organisation.postal_address.state }}, {{ organisation.postal_address.postcode}},
+        {{ organisation.postal_address.country}}
     
 {%  endblock %}

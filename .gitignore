@@ -24,6 +24,7 @@ eggs/
 .eggs/
 lib/
 lib64/
+parts/
 sdist/
 var/
 *.egg-info/
@@ -63,7 +64,6 @@ staticfiles*
 
 # vim
 *.swp
-*.swo
 
 # Sphinx documentation
 docs/_build/
@@ -75,9 +75,6 @@ target/
 # Eclipse project files
 /.pydevproject
 /.project
-
-# VS Code settings
-.vscode/
 
 **/local/
 *.map
@@ -102,6 +99,7 @@ uwsgi*.ini
 # wildlifecompliance build static files
 wildlifecompliance/static/wildlifecompliance_vue/static/*
 
+
 # npm locks
 *-lock.json
 
@@ -110,3 +108,4 @@ commercialoperator/static/commercialoperator_vue/static/js/app.js
 commercialoperator/static/commercialoperator_vue/static/js/manifest.js
 commercialoperator/static/commercialoperator_vue/static/js/vendor.js
 commercialoperator/static/commercialoperator_vue/static/js/babel-polyfill.js
+

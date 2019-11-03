@@ -84,7 +84,6 @@ class OracleAccountCode(models.Model):
     class Meta:
         managed = False
         db_table = 'payments_account_codes'
-        app_label = 'fdw_manager'
 
 class OracleOpenPeriod(models.Model):
     period_name = models.CharField(max_length=240,primary_key=True)
@@ -93,7 +92,6 @@ class OracleOpenPeriod(models.Model):
     class Meta:
         managed = False
         db_table = 'payments_open_periods'
-        app_label = 'fdw_manager'
 
 # Refund Tracking
 class TrackRefund(models.Model):

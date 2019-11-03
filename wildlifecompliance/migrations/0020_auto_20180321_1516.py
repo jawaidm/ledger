@@ -19,8 +19,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='wildlifelicenceactivitytype',
             name='category',
-            field=models.ManyToManyField(
-                null=True,
-                to='wildlifecompliance.WildlifeLicenceCategory'),
+            field=models.ManyToManyField(null=True, to='wildlifecompliance.WildlifeLicenceCategory'),
         ),
     ]

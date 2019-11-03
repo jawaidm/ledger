@@ -19,9 +19,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='applicationdeclineddetails',
             name='activity_type',
-            field=models.ManyToManyField(
-                default=False,
-                null=True,
-                to='wildlifecompliance.WildlifeLicenceActivityType'),
+            field=models.ManyToManyField(default=False, null=True, to='wildlifecompliance.WildlifeLicenceActivityType'),
         ),
     ]

@@ -14,8 +14,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AlterModelOptions(
             name='applicationgrouptype',
-            options={
-                'verbose_name': 'Licence activity group',
-                'verbose_name_plural': 'Licence activity groups'},
+            options={'verbose_name': 'Licence activity group', 'verbose_name_plural': 'Licence activity groups'},
         ),
     ]

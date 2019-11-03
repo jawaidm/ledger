@@ -16,9 +16,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='return',
             name='return_type',
-            field=models.ForeignKey(
-                null=True,
-                on_delete=django.db.models.deletion.CASCADE,
-                to='wildlifecompliance.ReturnType'),
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.CASCADE, to='wildlifecompliance.ReturnType'),
         ),
     ]

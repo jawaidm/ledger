@@ -16,8 +16,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='application',
             name='licence_type_data',
-            field=django.contrib.postgres.fields.jsonb.JSONField(
-                blank=True,
-                null=True),
+            field=django.contrib.postgres.fields.jsonb.JSONField(blank=True, null=True),
         ),
     ]

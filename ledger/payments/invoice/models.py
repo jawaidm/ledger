@@ -15,15 +15,7 @@ from ledger.payments.bpay.crn import getCRN
 from ledger.payments.bpay.models import BpayTransaction
 from ledger.payments.bpoint.models import BpointTransaction, TempBankCard, BpointToken, UsedBpointToken
 
-
 class Invoice(models.Model):
-
-    PAYMENT_STATUS_NOT_REQUIRED = 'payment_not_required'
-    PAYMENT_STATUS_UNPAID = 'unpaid'
-    PAYMENT_STATUS_PARTIALLY_PAID = 'partially_paid'
-    PAYMENT_STATUS_PAID = 'paid'
-    PAYMENT_STATUS_OVERPAID = 'over_paid'
-
     created = models.DateTimeField(auto_now_add=True)
     text = models.TextField(null=True,blank=True)
     amount = models.DecimalField(decimal_places=2,max_digits=12)
@@ -151,13 +143,13 @@ class Invoice(models.Model):
         amount_paid = self.__calculate_bpay_payments() + self.__calculate_bpoint_payments() + self.__calculate_cash_payments() - self.__calculate_total_refunds()
 
         if amount_paid == decimal.Decimal('0') and self.amount > 0:
-            return Invoice.PAYMENT_STATUS_UNPAID
+            return 'unpaid'
         elif amount_paid < self.amount:
-            return Invoice.PAYMENT_STATUS_PARTIALLY_PAID
+            return 'partially_paid'
         elif amount_paid == self.amount:
-            return Invoice.PAYMENT_STATUS_PAID
+            return 'paid'
         else:
-            return Invoice.PAYMENT_STATUS_OVERPAID
+            return 'over_paid'
 
     @property
     def single_card_payment(self):

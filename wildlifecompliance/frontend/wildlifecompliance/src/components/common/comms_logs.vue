@@ -123,7 +123,7 @@ export default {
                     },
                     {
                         title: 'Type',
-                        data: 'log_type'
+                        data: 'type'
                     },
                     {
                         title: 'Reference',
@@ -227,17 +227,20 @@ export default {
         initialiseCommLogs: function(vm_uid,ref,datatable_options,table){
             let vm = this;
             let commsLogId = 'comms-log-table'+vm_uid;
-            let contentId = 'comms-log-content'+vm_uid;
             let popover_name = 'popover-'+ vm._uid+'-comms';
             $(ref).popover({
+                content: function() {
+                    return ` 
+                    <table id="${commsLogId}" class="hover table table-striped table-bordered dt-responsive " cellspacing="0" width="100%">
+                    </table>`
+                },
                 html: true,
                 title: 'Communications Log',
                 container: 'body',
                 placement: 'right',
                 trigger: "click",
-                template: `<div class="popover ${popover_name}" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div id="${contentId}" class="popover-content"></div></div>`,
+                template: `<div class="popover ${popover_name}" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>`,
             }).on('inserted.bs.popover', function () {
-                $(`#${contentId}`).html(`<table id="${commsLogId}" class="hover table table-striped table-bordered dt-responsive " cellspacing="0" width="100%"></table>`);
                 table = $('#'+commsLogId).DataTable(datatable_options);
 
                 // activate popover when table is drawn.
@@ -275,17 +278,10 @@ export default {
         initialiseActionLogs: function(vm_uid,ref,datatable_options,table){
             let vm = this;
             let actionLogId = 'actions-log-table'+vm_uid;
-            let contentId = 'actions-log-content'+vm_uid;
             let popover_name = 'popover-'+ vm._uid+'-logs';
             $(ref).popover({
-                html: true,
-                title: 'Action Log',
-                container: 'body',
-                placement: 'right',
-                trigger: "click",
-                template: `<div class="popover ${popover_name}" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div id="${contentId}" class="popover-content"></div></div>`,
-            }).on('inserted.bs.popover', function () {
-                $(`#${contentId}`).html(`
+                content: function() {
+                    return ` 
                     <table id="${actionLogId}" class="hover table table-striped table-bordered dt-responsive" cellspacing="0" width="100%">
                         <thead>
                             <tr>
@@ -296,7 +292,15 @@ export default {
                         </thead>
                         <tbody>
                         </tbody>
-                    </table>`);
+                    </table>`
+                },
+                html: true,
+                title: 'Action Log',
+                container: 'body',
+                placement: 'right',
+                trigger: "click",
+                template: `<div class="popover ${popover_name}" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>`,
+            }).on('inserted.bs.popover', function () {
                 table = $('#'+actionLogId).DataTable(datatable_options);
             }).on('shown.bs.popover', function () {
                 var el = ref;

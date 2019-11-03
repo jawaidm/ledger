@@ -8,10 +8,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wildlifecompliance',
-         '0042_merge_20180430_1546'),
-        ('wildlifecompliance',
-         '0043_wildlifelicenceactivitytype_licence_activity_status'),
+        ('wildlifecompliance', '0042_merge_20180430_1546'),
+        ('wildlifecompliance', '0043_wildlifelicenceactivitytype_licence_activity_status'),
     ]
 
     operations = [

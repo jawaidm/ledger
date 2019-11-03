@@ -3,15 +3,16 @@ import api from './api'
 import {helpers} from '@/utils/hooks' 
 
 export default {
-    fetchCurrentUser: function (){
+    fetchProfile: function (){
         return new Promise ((resolve,reject) => {
-            Vue.http.get(api.my_user_details).then((response) => {
+            Vue.http.get(api.profile).then((response) => {
                 resolve(response.body);
             },
             (error) => {
                 reject(error);
             });
         });
+
     },
     fetchApplication: function(id){
         return new Promise ((resolve,reject) => {
@@ -32,6 +33,7 @@ export default {
                 reject(error);
             });
         });
+
     },
     fetchOrganisations: function(id){
         return new Promise ((resolve,reject) => {
@@ -63,30 +65,11 @@ export default {
             });
         });
     },
-    fetchLicenceAvailablePurposes: function(params){
-        return new Promise ((resolve,reject) => {
-            Vue.http.get(api.licence_available_purposes, {"params": params}).then((response) => {
-                resolve(response.body);
-            },
-            (error) => {
-                reject(error);
-            });
-        });
-    },
     fetchOrganisation: function(id){
         return new Promise ((resolve,reject) => {
             Vue.http.get(helpers.add_endpoint_json(api.organisations,id)).then((response) => {
                 resolve(response.body);
-            },
-            (error) => {
-                reject(error);
-            });
-        });
-    },
-    fetchCurrentActiveLicenceApplication: function(params){
-        return new Promise ((resolve,reject) => {
-            Vue.http.get(`${api.applications}active_licence_application`, {"params": params}).then((response) => {
-                resolve(response.body);
+                console.log(response.body)
             },
             (error) => {
                 reject(error);

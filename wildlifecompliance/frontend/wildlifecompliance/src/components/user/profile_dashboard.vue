@@ -101,7 +101,6 @@ export default {
     watch:{
     },
     computed: {
-        // TODO: clean up status function if not used
         status: function(){
             //return this.is_external ? this.external_status : this.internal_status;
             return [];

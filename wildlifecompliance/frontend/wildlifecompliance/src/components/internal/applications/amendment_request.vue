@@ -10,15 +10,18 @@
                                 <label class="control-label">Request Amendment for the application</label>
                             </div>
                             <div class="row">
-                                <div class="form-group">
-                                    <div class="col-sm-offset-2 col-sm-8">
-                                        <label class="control-label" for="Name">Select licensed activities to amend</label>
-                                        <div v-for="activity in amendableActivities">
-                                            <div>
-                                                <input type="checkbox" :value ="activity.id" :name="activity.name" :id="activity.id" v-model="amendment.activity_list">{{activity.name}}
+                                <div class="col-sm-offset-2 col-sm-8">
+
+                                    <label class="control-label"  for="Name">Licensed activity to amend </label>
+                                    <div v-for="item in amendment.activity_type_name" v-model="amendment.activity_type_name">{{item}}</div>
+                                    <!-- <div  v-for="item in application_licence_type">
+                                        <div v-for="item1 in item">
+                                            <div  v-if="item1.name===amendment.activity_type_name && item1.processing_status==='With Officer'" >
+                                                <input type="text" disabled class="form-control" :id="item1.id" :value="item1.name" v-model="amendment.activity_type_name">
+                                                
                                             </div>
                                         </div>
-                                    </div>
+                                    </div> -->
                                 </div>
                             </div>
                             <div class="row">
@@ -34,7 +37,7 @@
                             <div class="row">
                                 <div class="col-sm-offset-2 col-sm-8">
                                     <div class="form-group">
-                                        <label class="control-label pull-left"  for="Name">Additional Comments to User</label>
+                                        <label class="control-label pull-left"  for="Name">Details</label>
                                         <textarea class="form-control" name="name" v-model="amendment.text">{{amendment.text}}</textarea>
                                     </div>
                                 </div>
@@ -53,7 +56,6 @@ import Vue from 'vue'
 import modal from '@vue-utils/bootstrap-modal.vue'
 import alert from '@vue-utils/alert.vue'
 import {helpers, api_endpoints} from "@/utils/hooks.js"
-import { mapGetters } from 'vuex'
 export default {
     name:'amendment-request',
     components:{
@@ -61,6 +63,13 @@ export default {
         alert
     },
     props:{
+            application_id:{
+                type:Number,
+            },
+            application_licence_type:{
+                type:Object,
+                required:true
+            }
     },
     data:function () {
         let vm = this;
@@ -70,9 +79,10 @@ export default {
             amendment: {
                 reason:'',
                 amendingApplication: false,
-                application: this.$store.getters.application_id,
+                application: vm.application_id ,
                 text:null,
-                activity_list:[]
+                activity_type_name:null,
+                activity_type_id:[]
             },
             reason_choices: {},
             errors: false,
@@ -81,23 +91,9 @@ export default {
         }
     },
     computed: {
-        ...mapGetters([
-            'application_id',
-            'licenceActivities',
-            'hasRole',
-        ]),
         showError: function() {
             var vm = this;
             return vm.errors;
-        },
-        amendableActivities: function() {
-            return this.licenceActivities([
-                'with_officer',
-                'with_assessor',
-                'with_officer_conditions'
-            ]).filter(
-                activity => this.hasRole('licensing_officer', activity.id)
-            );
         }
     },
     methods:{
@@ -115,8 +111,8 @@ export default {
                 reason: '',
                 application: this.application_id,
                 text:null,
-                licence_activity:null,
-                activity_list: [],
+                licence_activity_type:null,
+                activity_type_name:null
             };
         },
         close:function () {
@@ -125,8 +121,8 @@ export default {
                 reason: '',
                 application: this.application_id,
                 text:null,
-                licence_activity:null,
-                activity_list: [],
+                licence_activity_type:null,
+                activity_type_name:null
             };
             this.errors = false;
             $(this.$refs.reason).val(null).trigger('change');
@@ -142,10 +138,20 @@ export default {
             },(error) => {
                 console.log(error);
             } );
+            console.log('this is amendment object')
+            console.log(vm.amendment)
         },
         sendData:function(){
             let vm = this;
             vm.errors = false;
+            // for(var activity_type_index=0, len2=vm.application_licence_type.activity_type.length; activity_type_index<len2; activity_type_index++){
+            //     if (vm.application_licence_type.activity_type[activity_type_index].name==vm.amendment.activity_type_name){
+            //         console.log(vm.application_licence_type.activity_type[activity_type_index].id)
+            //         vm.amendment.licence_activity_type=vm.application_licence_type.activity_type[activity_type_index].id
+
+            //     }
+            // }
+
             let amendment = JSON.parse(JSON.stringify(vm.amendment));
             vm.$http.post('/api/amendment.json',JSON.stringify(amendment),{
                         emulateJSON:true,

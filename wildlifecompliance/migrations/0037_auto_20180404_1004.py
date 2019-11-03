@@ -16,8 +16,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='wildlifelicenceactivity',
             name='schema',
-            field=django.contrib.postgres.fields.jsonb.JSONField(
-                default={
-                    'defalut': 'default'}),
+            field=django.contrib.postgres.fields.jsonb.JSONField(default={'defalut': 'default'}),
         ),
     ]

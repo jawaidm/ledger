@@ -21,7 +21,7 @@
                     <!--Footer-->
                     <div class="modal-footer">
                         <slot name="footer">
-                            <button v-if="showOk" id="okBtn" type="button" :class="okClass" @click="ok">{{okText}}</button>
+                            <button id="okBtn" type="button" :class="okClass" @click="ok">{{okText}}</button>
                             <button type="button" :class="cancelClass" @click="cancel">{{cancelText}}</button>
                         </slot>
                     </div>
@@ -59,10 +59,6 @@
             force: {
                 type: Boolean,
                 default: false
-            },
-            showOk: {
-                type: Boolean,
-                default: true
             },
             transition: {
                 type: String,

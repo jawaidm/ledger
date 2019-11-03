@@ -8,8 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('wildlifecompliance',
-         '0081_remove_applicationgrouptype_display_name'),
+        ('wildlifecompliance', '0081_remove_applicationgrouptype_display_name'),
     ]
 
     operations = [
@@ -21,10 +20,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='applicationgrouptype',
             name='name',
-            field=models.CharField(
-                blank=True,
-                max_length=255,
-                null=True,
-                verbose_name='Group Name'),
+            field=models.CharField(blank=True, max_length=255, null=True, verbose_name='Group Name'),
         ),
     ]

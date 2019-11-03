@@ -5,6 +5,4 @@ class WildlifeComplianceAdminSite(AdminSite):
     site_header = 'Wildlife Licensing System Administration'
     site_title = 'Wildlife Licensing System'
 
-
-wildlifecompliance_admin_site = WildlifeComplianceAdminSite(
-    name='wildlifecomplianceadmin')
+wildlifecompliance_admin_site = WildlifeComplianceAdminSite(name='wildlifecomplianceadmin')

@@ -15,8 +15,8 @@
 
 <script>
 export default {
-    name:"FormSection",
-    props:["label","Index"],
+    name:"section",
+    props:["label","Key"],
     data:function () {
         return {
             title:"Section title",
@@ -25,7 +25,7 @@ export default {
     },
     computed:{
         section_id:function () {
-            return "section_"+this.Index
+            return "section_"+this.Key
         }
     },
     updated:function () {

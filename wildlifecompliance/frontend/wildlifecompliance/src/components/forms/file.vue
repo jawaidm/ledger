@@ -1,21 +1,31 @@
 <template lang="html">
     <div>
         <div class="form-group">
+
+            <!-- using num_files to determine if files have been uploaded for this question/label (used in disturbance/frontend/disturbance/src/components/external/application.vue) -->
             <label :id="id" :num_files="num_documents()">{{label}}</label>
             <template v-if="help_text">
                 <HelpText :help_text="help_text" />
             </template>
+            <template v-if="help_text_assessor && assessorMode">
+                <HelpText :help_text="help_text_assessor" assessorMode={assessorMode} isForAssessor={true} />
+            </template> 
 
             <template v-if="help_text_url">
                 <HelpTextUrl :help_text_url="help_text_url" />
             </template>
+            <template v-if="help_text_assessor_url && assessorMode">
+                <HelpTextUrl :help_text_url="help_text_assessor_url" assessorMode={assessorMode} isForAssessor={true} />
+            </template> 
 
-            <CommentBlock 
-                :label="label"
-                :name="name"
-                :field_data="field_data"
-                />
 
+            <template v-if="assessorMode && !assessor_readonly && wc_version != 1.0">
+                <template v-if="!showingComment">
+                    <a v-if="comment_value != null && comment_value != undefined && comment_value != ''" href="" @click.prevent="toggleComment"><i style="color:red" class="fa fa-comment-o">&nbsp;</i></a>
+                    <a v-else href="" @click.prevent="toggleComment"><i class="fa fa-comment-o">&nbsp;</i></a>
+                </template>
+                <a href="" v-else  @click.prevent="toggleComment"><i class="fa fa-ban">&nbsp;</i></a>
+            </template>
             <div v-if="files">
                 <div v-for="v in documents">
                     <p>
@@ -24,7 +34,9 @@
                             <a @click="delete_document(v)" class="fa fa-trash-o" title="Remove file" :filename="v.name" style="cursor: pointer; color:red;"></a>
                         </span>
                         <span v-else>
-                            <i class="fa fa-info-circle" aria-hidden="true" title="Previously submitted documents cannot be deleted" style="cursor: pointer;"></i>
+                            <span v-if="!assessorMode">
+                                <i class="fa fa-info-circle" aria-hidden="true" title="Previously submitted documents cannot be deleted" style="cursor: pointer;"></i>
+                            </span>
                         </span>
                     </p>
                 </div>
@@ -37,6 +49,7 @@
             </div>
 
         </div>
+        <Comment :question="label" :readonly="assessor_readonly" :name="name+'-comment-field'" v-show="showingComment && assessorMode" :value="comment_value" :required="isRequired"/> 
     </div>
 </template>
 
@@ -45,10 +58,9 @@ import {
   api_endpoints,
   helpers
 }
-from '@/utils/hooks';
-import CommentBlock from './comment_block.vue';
-import HelpText from './help_text.vue';
-import { mapGetters } from 'vuex';
+from '@/utils/hooks'
+import Comment from './comment.vue'
+import HelpText from './help_text.vue'
 export default {
     props:{
         application_id: null,
@@ -56,8 +68,20 @@ export default {
         label:String,
         id:String,
         isRequired:String,
+        comment_value: String,
+        assessor_readonly: Boolean,
         help_text:String,
-        field_data:Object,
+        help_text_assessor:String,
+        assessorMode:{
+            default:function(){
+                return false;
+            }
+        },
+        value:{
+            default:function () {
+                return null;
+            }
+        },
         fileTypes:{
             default:function () {
                 var file_types = 
@@ -75,17 +99,24 @@ export default {
         readonly:Boolean,
         docsUrl: String,
     },
-    components: {CommentBlock, HelpText},
+    components: {Comment, HelpText},
     data:function(){
         return {
             repeat:1,
             files:[],
+            showingComment: false,
             show_spinner: false,
             documents:[],
             filename:null,
-            help_text_url:'',
         }
     },
+
+    //computed: {
+    //    csrf_token: function() {
+    //        return helpers.getCookie('csrftoken')
+    //    }
+    //},
+
     computed: {
         csrf_token: function() {
             return helpers.getCookie('csrftoken')
@@ -93,12 +124,16 @@ export default {
         application_document_action: function() {
           return (this.application_id) ? `/api/application/${this.application_id}/process_document/` : '';
         },
-        value: function() {
-            return this.field_data.value;
-        }
+        wc_version: function (){
+            return this.$root.wc_version;
+        },
     },
 
     methods:{
+
+        toggleComment(){
+            this.showingComment = ! this.showingComment;
+        },
         handleChange:function (e) {
             let vm = this;
 
@@ -214,6 +249,7 @@ export default {
             }
             return 0;
         },
+
     },
     mounted:function () {
         let vm = this;
