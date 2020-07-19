@@ -40,6 +40,7 @@ class VoucherSerializer(serializers.Serializer):
 
 class BasketSerializer(serializers.Serializer):
     products = serializers.ListField()
+    existing_basket_id = serializers.IntegerField(default=None)
     vouchers = VoucherSerializer(many=True,required=False)
     system = serializers.CharField(max_length=4, min_length=4)
     custom_basket = serializers.BooleanField(default=False)

@@ -25,6 +25,7 @@ def create_basket_session(request, parameters):
     serializer.is_valid(raise_exception=True)
 
     custom = serializer.validated_data.get('custom_basket')
+    existing_basket_id = serializer.validated_data.get('existing_basket_id')
     # validate product list
     if custom:
         product_serializer = serializers.CheckoutCustomProductSerializer(data=serializer.initial_data.get('products'), many=True)
@@ -33,7 +34,10 @@ def create_basket_session(request, parameters):
     product_serializer.is_valid(raise_exception=True)
 
     # validate basket
-    if serializer.validated_data.get('vouchers'):
+    if existing_basket_id:
+        basket = getExistingBasket(existing_basket_id)
+
+    elif serializer.validated_data.get('vouchers'):
         if custom:
             basket = createCustomBasket(serializer.validated_data['products'],
                                         request.user, serializer.validated_data['system'],
@@ -351,7 +355,6 @@ def createCustomBasket(product_list, owner, system,vouchers=None, force_flush=Tr
         ]
         @param - owner (user id or user object)
     '''
-    #import pdb; pdb.set_trace()
     try:
         old_basket = basket = None
         valid_products = []
@@ -420,6 +423,21 @@ def createCustomBasket(product_list, owner, system,vouchers=None, force_flush=Tr
         return basket
     except Product.DoesNotExist:
         raise
+    except Basket.DoesNotExist:
+        raise ValidationError('Cannot get existing basket object: basket_id {} '.format(existing_basket_id))
     except Exception as e:
         raise
 
+def getExistingBasket(existing_basket_id):
+    '''
+    Retrieve an existing basket - used to make payment for an existing unpaid invoice with credit card
+    '''
+    try:
+        basket = Basket.objects.get(id=existing_basket_id)
+        basket.thaw()
+        return basket
+
+    except Basket.DoesNotExist:
+        raise ValidationError('Cannot get existing basket object: basket_id {} '.format(existing_basket_id))
+    except Exception as e:
+        raise

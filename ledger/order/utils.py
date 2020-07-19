@@ -38,7 +38,6 @@ class OrderCreator(CoreOrderCreator):
             if order and order.status == 'Awaiting Payment':
                 # order already exists and is awaiting payment
                 order.lines.all().delete()
-                order.basket = basket
                 order.status = 'Complete'
                 order.save()
             else:
