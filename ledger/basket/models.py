@@ -32,7 +32,7 @@ class Basket(CoreAbstractBasket):
         '''
 
         if not data.get('quantity'):
-            data['quantity'] = 1 
+            data['quantity'] = 1
         line = self.lines.create(**data)
         return line
 
@@ -46,6 +46,23 @@ class Basket(CoreAbstractBasket):
                 if line.product.is_shipping_required:
                     return True
         return False
+
+    def subset_lines(self):
+        """ Returns a subset of key:value from lines (products) required at checkout """
+        keys = (
+            'ledger_description',
+            'oracle_code',
+            'price_incl_tax',
+            'price_excl_tax',
+            'quantity',
+        )
+
+        subset = []
+        for line in list(self.all_lines().values()):
+            subset.append( {k: line[k] for k in keys if line.has_key(k)} )
+
+        return subset
+
 
 @python_2_unicode_compatible
 class Line(CoreAbstractLine):
@@ -91,7 +108,7 @@ class Line(CoreAbstractLine):
             info.price.excl_tax = self.price_excl_tax
             info.price.incl_tax =  self.price_incl_tax
             info.price.tax = (self.price_incl_tax - self.price_excl_tax)
-            info.price.is_tax_known = True 
+            info.price.is_tax_known = True
 
             self._info = info
             return self._info

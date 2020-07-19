@@ -3,6 +3,7 @@
 venv/
 venv2/
 node_modules/
+.ropeproject/
 cronjobs
 mooring/cache/*
 

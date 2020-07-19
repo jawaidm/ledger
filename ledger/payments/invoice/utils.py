@@ -41,7 +41,7 @@ class CreateInvoiceBasket(CoreOrderCreator):
     def create_invoice_and_order(self,basket, total,
                     shipping_method, shipping_charge, user=None,
                     shipping_address=None, billing_address=None,
-                    order_number=None, status=None, invoice_text='', **kwargs):
+                    order_number=None, status=None, invoice_text='', basket_status='Submitted', **kwargs):
 
         """
         Creates and order from the basket and generates a new invoice.
@@ -105,8 +105,9 @@ class CreateInvoiceBasket(CoreOrderCreator):
         #if transaction.get_autocommit():
         #    order_placed.send(sender=self, order=order, user=user)
         invoice = self.create_invoice(order_number,total,invoice_text,**kwargs)
-        basket.status = 'Submitted'
-        basket.date_submitted = datetime.datetime.now()
+        basket.status = basket_status
+        if basket_status == 'Submitted':
+            basket.date_submitted = datetime.datetime.now()
         basket.save()
 
         return order

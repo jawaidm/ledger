@@ -31,7 +31,7 @@ def create_basket_session(request, parameters):
     else:
         product_serializer = serializers.CheckoutProductSerializer(data=serializer.initial_data.get('products'), many=True)
     product_serializer.is_valid(raise_exception=True)
-        
+
     # validate basket
     if serializer.validated_data.get('vouchers'):
         if custom:
@@ -74,11 +74,11 @@ def create_checkout_session(request, parameters):
     serializer = serializers.CheckoutSerializer(data=parameters)
     serializer.is_valid(raise_exception=True)
 
-    session_data = CheckoutSessionData(request) 
+    session_data = CheckoutSessionData(request)
 
     # reset method of payment when creating a new session
     session_data.pay_by(None)
-    
+
     session_data.use_system(serializer.validated_data['system'])
     session_data.charge_by(serializer.validated_data['card_method'])
     session_data.use_shipping_method(serializer.validated_data['shipping_method'])
@@ -108,6 +108,7 @@ def create_checkout_session(request, parameters):
 
     session_data.set_last_check(serializer.validated_data['check_url'])
 
+    session_data.set_existing_invoice(serializer.validated_data['existing_invoice'])
 
 # shortcut for finalizing a checkout session and creating an invoice.
 # equivalent to checking out with a deferred payment method (e.g. BPAY).
@@ -156,15 +157,15 @@ class CheckoutSessionData(CoreCheckoutSessionData):
     # ===========================
     def use_system(self, system_id):
         self._set('ledger','system_id',system_id)
-        
+
     def system(self):
         return self._get('ledger','system_id')
-    
+
     # BPAY Methods
     # ===========================
     def bpay_using(self, method):
         self._set('ledger','bpay_method',method)
- 
+
     def bpay_method(self):
         return self._get('ledger','bpay_method')
 
@@ -256,7 +257,7 @@ class CheckoutSessionData(CoreCheckoutSessionData):
     def get_invoice_text(self):
         return self._get('ledger','invoice_text')
 
-    # Last check url per system 
+    # Last check url per system
     # ==========================
     def set_last_check(self,text):
         self._set('ledger','last_check',text)
@@ -264,6 +265,13 @@ class CheckoutSessionData(CoreCheckoutSessionData):
     def get_last_check(self):
         return self._get('ledger','last_check')
 
+    # For payment of existing invoice
+    # ==========================
+    def set_existing_invoice(self,existing_invoice):
+        self._set('ledger','existing_invoice',existing_invoice)
+
+    def get_existing_invoice(self):
+        return self._get('ledger','existing_invoice')
 
 def calculate_excl_gst(amount):
     TWELVEPLACES = D(10) ** -12

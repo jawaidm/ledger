@@ -374,8 +374,15 @@ class PaymentDetailsView(CorePaymentDetailsView):
         # created).  We also save it in the session for multi-stage
         # checkouts (eg where we redirect to a 3rd party site and place
         # the order on a different request).
-        order_number = self.generate_order_number(basket)
-        self.checkout_session.set_order_number(order_number)
+        try:
+            invoice_reference = self.checkout_session.get_existing_invoice()
+            invoice = Invoice.objects.get(reference=self.checkout_session.get_existing_invoice())
+            order_number = invoice.order_number
+        except Invoice.DoesNotExist:
+            order_number = self.generate_order_number(basket)
+
+
+        #self.checkout_session.set_order_number(order_number)
         logger.info("Order #%s: beginning submission process for basket #%d",
                     order_number, basket.id)
 

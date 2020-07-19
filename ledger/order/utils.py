@@ -26,17 +26,24 @@ class OrderCreator(CoreOrderCreator):
             order_number = generator.order_number(basket)
         if not status and hasattr(settings, 'OSCAR_INITIAL_ORDER_STATUS'):
             status = getattr(settings, 'OSCAR_INITIAL_ORDER_STATUS')
-        try:
-            Order._default_manager.get(number=order_number)
-        except Order.DoesNotExist:
-            pass
-        else:
-            raise ValueError("There is already an order with number "+str(order_number))
 
-        # Ok - everything seems to be in order, let's place the order
-        order = self.create_order_model(
-            user, basket, shipping_address, shipping_method, shipping_charge,
-            billing_address, total, order_number, status, **kwargs)
+        try:
+            order = Order._default_manager.get(number=order_number)
+        except Order.DoesNotExist:
+            # Ok - everything seems to be in order, let's place the order
+            order = self.create_order_model(
+                user, basket, shipping_address, shipping_method, shipping_charge,
+                billing_address, total, order_number, status, **kwargs)
+        else:
+            if order and order.status == 'Awaiting Payment':
+                # order already exists and is awaiting payment
+                order.lines.all().delete()
+                order.basket = basket
+                order.status = 'Complete'
+                order.save()
+            else:
+                raise ValueError("There is already an order with number "+str(order_number))
+
         for line in basket.all_lines():
             if not basket.custom_ledger:
                 self.create_line_models(order, line)
@@ -71,7 +78,7 @@ class OrderCreator(CoreOrderCreator):
         if transaction.get_autocommit():
             order_placed.send(sender=self, order=order, user=user)
 
-        return order    
+        return order
 
     def create_line_models(self, order, basket_line, extra_line_fields=None,custom_ledger=False):
         """
